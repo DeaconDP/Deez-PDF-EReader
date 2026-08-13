@@ -1,7 +1,7 @@
 # DeezPDF Reader
 
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/gh/DeaconDP/Deez-PDF-EReader@main/docs/screenshots/hero.png" alt="DeezPDF" width="720" />
+  <img src="https://cdn.jsdelivr.net/gh/DeaconDP/Deez-PDF-EReader@main/docs/screenshots/hero.png" alt="DeezPDF" width="360" />
 </p>
 
 Cyberpunk-styled PDF reader with a local library. Page-by-page like a Kindle, swipe navigation, automatic progress — PDFs stay on your device. Nothing is uploaded.
