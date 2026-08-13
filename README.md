@@ -1,6 +1,8 @@
 # DeezPDF Reader
 
-![DeezPDF — local library](docs/screenshots/hero.png)
+<p align="center">
+  <img src="https://cdn.jsdelivr.net/gh/DeaconDP/Deez-PDF-EReader@main/docs/screenshots/hero.png" alt="DeezPDF" width="720" />
+</p>
 
 Cyberpunk-styled PDF reader with a local library. Page-by-page like a Kindle, swipe navigation, automatic progress — PDFs stay on your device. Nothing is uploaded.
 
@@ -38,7 +40,7 @@ Install as a PWA from Chrome/Edge for an app-like window.
 
 | Desktop | Phone |
 |---------|-------|
-| ![Desktop](docs/screenshots/01-main.png) | ![Phone](docs/screenshots/02-phone.png) |
+| <img src="https://cdn.jsdelivr.net/gh/DeaconDP/Deez-PDF-EReader@main/docs/screenshots/01-main.png" alt="Desktop" width="420" /> | <img src="https://cdn.jsdelivr.net/gh/DeaconDP/Deez-PDF-EReader@main/docs/screenshots/02-phone.png" alt="Phone" width="200" /> |
 
 </details>
 
