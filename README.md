@@ -79,7 +79,7 @@ In Chrome or Edge, click the install icon in the address bar to add DeezPDF Read
 | Code | Meaning |
 |------|---------|
 | ERR-LCH-001 | Node.js is not installed — download from [nodejs.org](https://nodejs.org) |
-| ERR-LCH-002 | Could not start the local server — try closing other apps using port 5173 |
+| ERR-LCH-002 | Could not start the local server — try closing other apps using port 5179 |
 | ERR-LIB-001 | Failed to read a PDF file |
 | ERR-LIB-002 | Folder picker not supported — use "Add PDF" instead, or switch to Chrome/Edge |
 | ERR-LIB-003 | Failed to download PDF from URL |

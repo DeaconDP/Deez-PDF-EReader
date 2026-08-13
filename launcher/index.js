@@ -19,7 +19,7 @@ const ROOT = join(__dirname, '..');
 const LOCK_FILE = join(ROOT, '.deezpdfreader.lock');
 const LOG_DIR = join(ROOT, 'logs');
 const LOG_FILE = join(LOG_DIR, 'app.log');
-const DEFAULT_PORT = 5173;
+const DEFAULT_PORT = 5179;
 
 function log(level, message) {
   const timestamp = new Date().toISOString();
