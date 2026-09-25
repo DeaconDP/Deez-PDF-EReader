@@ -10,8 +10,7 @@ import {
   type PdfMeta,
   type PdfSort,
 } from '../lib/library';
-import { formatError, AppError } from '../lib/errors';
-import { agentDebugLog } from '../lib/agent-debug';
+import { formatError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { showLoading } from '../components/loading';
 import { brandLogoSrc } from '../lib/brand';
@@ -313,17 +312,6 @@ export function createLibraryView(
         showToast(`Added "${meta.name}" to library`);
       }
     } catch (err) {
-      agentDebugLog(
-        'library.ts:submitDownload:error',
-        'submitDownload failed',
-        {
-          url,
-          errorName: err instanceof Error ? err.name : 'unknown',
-          errorMessage: err instanceof Error ? err.message : String(err),
-          errorCode: err instanceof AppError ? err.code : undefined,
-        },
-        'ALL',
-      );
       showToast(formatError(err), true);
       logger.logError('Failed to download PDF', err);
     } finally {

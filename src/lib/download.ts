@@ -1,5 +1,4 @@
 import { CapacitorHttp } from '@capacitor/core';
-import { agentDebugLog } from './agent-debug';
 import { AppError, ErrorCodes } from './errors';
 import { logger } from './logger';
 import { isNativeApp } from './platform';
@@ -142,15 +141,6 @@ async function fetchPdfViaNativeHttp(url: URL): Promise<Response> {
       },
     });
   } catch (err) {
-    agentDebugLog(
-      'download.ts:fetchPdfViaNativeHttp:error',
-      'CapacitorHttp.get threw',
-      {
-        errorName: err instanceof Error ? err.name : 'unknown',
-        errorMessage: err instanceof Error ? err.message : String(err),
-      },
-      'B',
-    );
     throw err instanceof AppError
       ? err
       : new AppError(
@@ -159,32 +149,11 @@ async function fetchPdfViaNativeHttp(url: URL): Promise<Response> {
         );
   }
 
-  agentDebugLog(
-    'download.ts:fetchPdfViaNativeHttp',
-    'native http result',
-    {
-      status: response.status,
-      dataType: typeof response.data,
-      dataLength: typeof response.data === 'string' ? response.data.length : null,
-      dataPrefix: typeof response.data === 'string' ? response.data.slice(0, 8) : null,
-    },
-    'B',
-  );
-
   if (response.status < 200 || response.status >= 300) {
     throw new AppError(ErrorCodes.LIB_003, `HTTP ${response.status}`);
   }
 
   const buffer = nativeHttpDataToArrayBuffer(response.data);
-  agentDebugLog(
-    'download.ts:fetchPdfViaNativeHttp:decoded',
-    'native pdf decoded',
-    {
-      byteLength: buffer.byteLength,
-      pdfMagic: isPdfBytes(buffer),
-    },
-    'C',
-  );
 
   const contentType =
     headerFromNativeResponse(response.headers, 'content-type') ?? 'application/octet-stream';
@@ -198,12 +167,6 @@ async function fetchPdfViaNativeHttp(url: URL): Promise<Response> {
 async function fetchPdfResponse(url: URL): Promise<Response> {
   const isDev = import.meta.env.DEV;
   const isNative = isNativeApp();
-  agentDebugLog(
-    'download.ts:fetchPdfResponse:entry',
-    'fetchPdfResponse start',
-    { href: url.href, hostname: url.hostname, isDev, isNative },
-    'B',
-  );
 
   if (isNative) {
     return fetchPdfViaNativeHttp(url);
@@ -212,43 +175,14 @@ async function fetchPdfResponse(url: URL): Promise<Response> {
   if (!isDev) {
     try {
       const directResponse = await fetch(url.href);
-      agentDebugLog(
-        'download.ts:fetchPdfResponse:direct',
-        'direct fetch result',
-        {
-          ok: directResponse.ok,
-          status: directResponse.status,
-          contentType: directResponse.headers.get('content-type'),
-        },
-        'B',
-      );
       if (directResponse.ok) return directResponse;
       throw new AppError(ErrorCodes.LIB_003, `HTTP ${directResponse.status}`);
     } catch (err) {
       if (err instanceof AppError) throw err;
-      agentDebugLog(
-        'download.ts:fetchPdfResponse:direct-fallback',
-        'direct fetch failed, trying proxy',
-        {
-          errorName: err instanceof Error ? err.name : 'unknown',
-          errorMessage: err instanceof Error ? err.message : String(err),
-        },
-        'B',
-      );
     }
   }
 
   const proxyResponse = await fetchViaProxy(url);
-  agentDebugLog(
-    'download.ts:fetchPdfResponse:proxy',
-    'proxy fetch result',
-    {
-      hasResponse: proxyResponse !== null,
-      ok: proxyResponse?.ok ?? false,
-      status: proxyResponse?.status ?? null,
-    },
-    'A',
-  );
   if (proxyResponse?.ok) return proxyResponse;
 
   const proxyDetail = proxyResponse
@@ -266,22 +200,7 @@ async function fetchPdfResponse(url: URL): Promise<Response> {
 }
 
 export async function fetchPdfFromUrl(rawUrl: string): Promise<{ blob: Blob; filename: string }> {
-  let url: URL;
-  try {
-    url = parseUrl(rawUrl);
-  } catch (err) {
-    agentDebugLog(
-      'download.ts:fetchPdfFromUrl:parse',
-      'URL parse failed',
-      {
-        rawUrl,
-        normalized: normalizeUrlInput(rawUrl),
-        errorMessage: err instanceof Error ? err.message : String(err),
-      },
-      'E',
-    );
-    throw err;
-  }
+  const url = parseUrl(rawUrl);
   const filename = filenameFromUrl(url);
   const response = await fetchPdfResponse(url);
 
@@ -289,12 +208,6 @@ export async function fetchPdfFromUrl(rawUrl: string): Promise<{ blob: Blob; fil
   const buffer = await blob.arrayBuffer();
   const pdfMagic = isPdfBytes(buffer);
   const contentType = response.headers.get('content-type') ?? blob.type;
-  agentDebugLog(
-    'download.ts:fetchPdfFromUrl:validate',
-    'response received',
-    { filename, blobSize: blob.size, pdfMagic, contentType },
-    'C',
-  );
 
   if (!pdfMagic) {
     if (!contentType.includes('pdf')) {
@@ -328,17 +241,6 @@ export async function savePdfToDisk(blob: Blob, suggestedName: string): Promise<
     logger.info(`Saved PDF to disk: ${suggestedName}`);
     return true;
   } catch (err) {
-    agentDebugLog(
-      'download.ts:savePdfToDisk:error',
-      'save picker failed',
-      {
-        suggestedName,
-        errorName: err instanceof Error ? err.name : 'unknown',
-        errorMessage: err instanceof Error ? err.message : String(err),
-        isAbort: err instanceof DOMException && err.name === 'AbortError',
-      },
-      'D',
-    );
     if (err instanceof DOMException && err.name === 'AbortError') {
       return false;
     }

@@ -43,6 +43,8 @@ npm run cap:sync
 4. **Product → Archive**, then **Distribute App** → **App Store Connect** → **Upload**.
 5. In [App Store Connect](https://appstoreconnect.apple.com), add metadata, screenshots, and submit for review.
 
+> **Subtitle (guideline 2.3.7):** do not put price words in the App Information subtitle — Apple rejects `free`, `$`, and discount language there. Prefer something like `Your local PDF reader`. Price notes belong in the description if needed.
+
 CLI alternative after archiving:
 
 ```bash

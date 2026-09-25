@@ -1507,22 +1507,6 @@ body::after {
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.debug-agent {
-  padding: var(--space-sm) 0.75rem;
-  border-bottom: 1px solid var(--border-subtle);
-  max-height: 120px;
-  overflow-y: auto;
-}
-
-.debug-agent-title {
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent-warn);
-  margin-bottom: var(--space-xs);
-}
-
 .debug-entries {
   flex: 1;
   overflow-y: auto;
