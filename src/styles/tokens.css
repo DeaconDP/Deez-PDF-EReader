@@ -120,7 +120,7 @@
   --button-h: 52px;
   --input-h: 48px;
   --progress-h: 8px;
-  --progress-h-reader: 6px;
+  --progress-h-reader: 4px;
   --dot-size: 14px;
   --content-max: 720px;
 
@@ -138,6 +138,19 @@
   --dur-float: 3.2s;
   --stagger-step: 40ms;
   --press-scale: 0.96;
+
+  /* ── Reader: calm, flat chrome; the page is the hero ───── */
+  --hairline: 1px;
+  --reader-chrome-bg: var(--surface);
+  --reader-chrome-edge: var(--border);
+  --reader-progress-track: var(--border);
+  --reader-progress-fill: var(--primary-ink); /* 4.6:1 on the track (light), 5.6:1 (dark) */
+  --reading-measure: 40rem;                    /* comfortable line length in text mode */
+  --reading-pad-block: var(--space-10);
+  --reading-pad-inline: var(--page-pad);
+  --reading-pad-end: var(--space-12);
+  --dur-chrome: var(--dur-snappy);
+  --ease-chrome: var(--ease-gentle);
 }
 
 /* ── Neutrals: dark (deep blue-slate so the brights still sing) ── */

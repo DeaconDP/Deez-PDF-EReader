@@ -3,7 +3,7 @@ import './styles/app.css';
 import { createLibraryView, type LibraryTab } from './views/library';
 import { createReaderView } from './views/reader';
 import { initDebugPanel } from './components/debug-panel';
-import { addLookupResultToLibrary } from './lib/library';
+import { addLookupResultToLibrary, getPdfMeta, removePdf } from './lib/library';
 import { logger } from './lib/logger';
 import { initNativeShell } from './lib/native-shell';
 import { isNativeApp } from './lib/platform';
@@ -47,6 +47,13 @@ function showLibrary(options?: { tab?: LibraryTab; toast?: string }) {
 async function openLibraryReader(id: string) {
   const { view, load } = createReaderView({ mode: 'library', pdfId: id }, {
     onBack: () => showLibrary(),
+    // Offered on the reader's error screen for damaged or unreadable files.
+    // The library will later take this over to offer Undo.
+    onRemoveFromLibrary: async (pdfId) => {
+      const meta = await getPdfMeta(pdfId).catch(() => undefined);
+      await removePdf(pdfId);
+      showLibrary({ toast: meta ? `Removed “${meta.name}”` : 'Removed it from your library' });
+    },
   });
   mount(view);
   await load();

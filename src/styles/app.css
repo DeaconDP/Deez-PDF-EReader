@@ -1032,8 +1032,23 @@ button {
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  border-bottom: var(--border-w) solid var(--border);
-  background: var(--surface);
+  border-bottom: var(--hairline) solid var(--reader-chrome-edge);
+  background: var(--reader-chrome-bg);
+}
+
+/* Quiet chrome: no lips or sky fills in the reader except Prev / Next. */
+.reader-add-btn {
+  --btn-bg: transparent;
+  --btn-ink: var(--primary-ink);
+  --btn-edge: var(--reader-chrome-edge);
+  --btn-lip: transparent;
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.reader-add-btn:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+  box-shadow: none;
 }
 
 .btn-back {
@@ -1095,10 +1110,6 @@ button {
   gap: var(--space-2);
 }
 
-.reader-add-btn {
-  margin-bottom: var(--lip-sm);
-}
-
 .reader-toolbar-secondary,
 .font-size-controls {
   display: none;
@@ -1119,11 +1130,10 @@ button {
   flex-direction: column;
   min-width: 14rem;
   padding: var(--space-3);
-  border: var(--border-w) solid var(--border);
+  border: var(--hairline) solid var(--reader-chrome-edge);
   border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: 0 var(--lip) 0 var(--border-lip);
-  animation: popIn var(--dur-snappy) var(--ease-snappy);
+  background: var(--reader-chrome-bg);
+  animation: fadeIn var(--dur-fast) var(--ease-gentle);
   transform-origin: top right;
 }
 
@@ -1147,7 +1157,7 @@ button {
 }
 
 .reader-overflow-item > .icon:first-child {
-  color: var(--primary-ink);
+  color: var(--text-muted);
 }
 
 .reader-overflow-check {
@@ -1164,11 +1174,13 @@ button {
   flex: none;
   height: var(--progress-h-reader);
   border-radius: 0;
+  background: var(--reader-progress-track);
 }
 
 .reader-progress-fill {
   width: 0%;
   border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  background: var(--reader-progress-fill);
   transition: width var(--dur-snappy) var(--ease-gentle);
 }
 
@@ -1178,6 +1190,7 @@ button {
 
 .reader-tips {
   flex: none;
+  background: var(--reader-stage);
   padding: var(--space-3) var(--space-6);
   color: var(--text-muted);
   font-size: var(--text-caption);
@@ -1192,7 +1205,9 @@ button {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: var(--space-2) var(--space-6) var(--space-6);
+  /* No padding: the renderer fits the page to the stage's client box
+     (padding would be counted), and keeps its own small margin. */
+  padding: 0;
   touch-action: pan-x pan-y;
   -webkit-overflow-scrolling: touch;
 }
@@ -1210,9 +1225,7 @@ button {
   max-width: 100%;
   max-height: 100%;
   border-radius: var(--radius-xs);
-  box-shadow:
-    0 0 0 var(--border-w) var(--border),
-    0 var(--lip) 0 var(--border-w) var(--border-lip);
+  box-shadow: 0 0 0 var(--hairline) var(--reader-chrome-edge);
   opacity: 0;
   transition: opacity var(--dur-snappy) ease-out;
 }
@@ -1230,55 +1243,49 @@ button {
 .reader-text-panel {
   display: none;
   max-width: 100%;
-  max-height: 100%;
-  overflow: auto;
-  padding: var(--space-9) var(--space-9) var(--space-12);
-  border-radius: var(--radius);
+  padding: var(--reading-pad-block) var(--reading-pad-inline) var(--reading-pad-end);
   font-family: var(--font-reading);
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: break-word;
   opacity: 0;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
   transition: opacity var(--dur-snappy) ease-out;
 }
 
 /* Reading surfaces: warm paper / soft night (contrast 15:1 both) */
-.reader-text-panel.text-theme-light {
+.reader-text-panel.text-theme-light,
+.reader-view.text-mode.text-theme-light .reader-canvas-container {
   background: var(--reading-paper);
   color: var(--reading-paper-ink);
 }
 
-.reader-text-panel.text-theme-dark {
+.reader-text-panel.text-theme-dark,
+.reader-view.text-mode.text-theme-dark .reader-canvas-container {
   background: var(--reading-night);
   color: var(--reading-night-ink);
 }
 
+/* Text mode: the paper fills the stage edge to edge, and the stage is the
+   one and only scroll container. */
 .reader-view.text-mode .reader-canvas-container {
-  align-items: stretch;
-  justify-content: stretch;
-  overflow: hidden;
+  display: block;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .reader-view.text-mode .reader-canvas-wrapper {
-  display: flex;
-  flex: 1;
+  display: block;
   width: 100%;
-  height: 100%;
-  min-height: 0;
   line-height: normal;
 }
 
 .reader-view.text-mode .reader-text-panel {
   display: block;
-  flex: 1;
   width: 100%;
-  height: 100%;
-  max-width: 46rem;
-  max-height: none;
+  max-width: var(--reading-measure);
   margin: 0 auto;
-  border: var(--border-w) solid var(--border);
 }
 
 .reader-view.text-mode .reader-canvas {
@@ -1286,10 +1293,91 @@ button {
 }
 
 .reader-bottom-bar {
+  position: relative;
+  z-index: 10;
   flex: none;
   padding: var(--space-5) var(--page-pad) calc(var(--space-3) + env(safe-area-inset-bottom));
-  border-top: var(--border-w) solid var(--border);
-  background: var(--surface);
+  border-top: var(--hairline) solid var(--reader-chrome-edge);
+  background: var(--reader-chrome-bg);
+}
+
+/* ── Hidden chrome: tap the page to hide / show the controls ──
+   The parts leave the flow at once (so the stage grows and the page is
+   re-fitted) and slide away over it; visibility flips after the slide, so
+   hidden controls can't be focused or read. JS also sets them inert. */
+.reader-chrome {
+  transition:
+    transform var(--dur-chrome) var(--ease-chrome),
+    opacity var(--dur-chrome) var(--ease-chrome),
+    visibility 0s linear 0s;
+}
+
+.reader-view.chrome-hidden .reader-chrome {
+  position: absolute;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform var(--dur-chrome) var(--ease-chrome),
+    opacity var(--dur-chrome) var(--ease-chrome),
+    visibility 0s linear var(--dur-chrome);
+}
+
+.reader-view.chrome-hidden .reader-header,
+.reader-view.chrome-hidden .reader-progress,
+.reader-view.chrome-hidden .reader-tips {
+  top: 0;
+  transform: translateY(-100%);
+}
+
+.reader-view.chrome-hidden .reader-bottom-bar {
+  bottom: 0;
+  transform: translateY(100%);
+}
+
+/* Keep the page clear of the home indicator once the bottom bar is gone.
+   (Margin, not padding: the renderer measures the stage's client box.) */
+.reader-view.chrome-hidden:not(.text-mode) .reader-canvas-container {
+  margin-bottom: env(safe-area-inset-bottom);
+}
+
+.reader-view.chrome-hidden.text-mode .reader-text-panel {
+  padding-bottom: calc(var(--reading-pad-end) + env(safe-area-inset-bottom));
+}
+
+/* Always reachable for VoiceOver and keyboards while the chrome is hidden;
+   visually hidden until it has focus. */
+.reader-show-chrome {
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  z-index: 20;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.reader-show-chrome:focus {
+  width: auto;
+  height: auto;
+  min-height: var(--tap-min);
+  margin: 0;
+  padding: var(--space-4) var(--space-8);
+  overflow: visible;
+  clip: auto;
+  border: var(--hairline) solid var(--reader-chrome-edge);
+  border-radius: var(--radius-pill);
+  background: var(--reader-chrome-bg);
+  color: var(--text);
+  font-weight: var(--weight-label);
+  transform: translateX(-50%);
 }
 
 .reader-toolbar-nav {
@@ -1350,6 +1438,10 @@ button {
   color: var(--text-muted);
   font-size: var(--text-small);
   font-weight: var(--weight-support);
+}
+
+.btn-remove {
+  --btn-ink: var(--danger-ink);
 }
 
 .error-actions {
@@ -1580,8 +1672,18 @@ button {
     transition-duration: 1ms !important;
   }
 
+  .reader-chrome,
+  .reader-view.chrome-hidden .reader-chrome {
+    transition-delay: 0ms !important;
+  }
+
+  .reader-view.chrome-hidden .reader-chrome {
+    transform: none;
+  }
+
   .btn:active:not(:disabled),
   .btn-small:active:not(:disabled),
+  .reader-add-btn:active:not(:disabled),
   .lookup-filter-chip:active,
   .pdf-card:has(.pdf-card-info:active) {
     transform: none;
