@@ -10,6 +10,7 @@ export const ErrorCodes = {
   LKP_003: 'ERR-LKP-003',
   PDF_001: 'ERR-PDF-001',
   PDF_002: 'ERR-PDF-002',
+  PDF_003: 'ERR-PDF-003',
   DB_001: 'ERR-DB-001',
 } as const;
 
@@ -27,6 +28,7 @@ const messages: Record<ErrorCode, string> = {
   'ERR-LKP-003': 'Failed to load PDF preview',
   'ERR-PDF-001': 'Failed to load or parse PDF',
   'ERR-PDF-002': 'Failed to render PDF page',
+  'ERR-PDF-003': 'Stored PDF data is unreadable',
   'ERR-DB-001': 'Failed to save data to local storage',
 };
 
@@ -49,4 +51,42 @@ export function formatError(err: unknown): string {
     return err.message;
   }
   return String(err);
+}
+
+/**
+ * Plain-language messages for people. Error codes and raw details stay in the
+ * log (`formatError`) and in the debug panel; screens and toasts use these.
+ */
+const friendlyMessages: Record<ErrorCode, string> = {
+  'ERR-LCH-001': 'Node.js is needed to run DeezPDF on this computer.',
+  'ERR-LCH-002': 'DeezPDF couldn’t start its local server.',
+  'ERR-LIB-001': 'That file couldn’t be read. Is it a PDF?',
+  'ERR-LIB-002': 'Adding a whole folder isn’t supported here. Try Add PDF instead.',
+  'ERR-LIB-003': 'That link didn’t give us a PDF. Check it ends in .pdf and try again.',
+  'ERR-LIB-004': 'Choosing a save location isn’t supported here.',
+  'ERR-LKP-001': 'Search didn’t work this time. Check your connection and try again.',
+  'ERR-LKP-002': 'No PDFs found for that search.',
+  'ERR-LKP-003': 'That preview didn’t load. Try another result.',
+  'ERR-PDF-001': 'This PDF couldn’t be opened. It may be damaged or protected.',
+  'ERR-PDF-002': 'This page didn’t draw properly. Try turning the page.',
+  'ERR-PDF-003': 'The saved copy of this PDF can’t be read any more. Remove it and add it again.',
+  'ERR-DB-001': 'We couldn’t save that on this device. Free up some space and try again.',
+};
+
+/** Specific validation messages that are already friendly, keyed by AppError detail. */
+const friendlyDetails: Record<string, string> = {
+  'name cannot be empty': 'Give it a name first.',
+  'Save cancelled': 'Download cancelled.',
+};
+
+export function friendlyError(err: unknown): string {
+  if (err instanceof AppError) {
+    const detail = err.message.slice(messages[err.code].length).replace(/^:\s*/, '');
+    return friendlyDetails[detail] ?? friendlyMessages[err.code];
+  }
+  return 'Something went wrong. Please try again.';
+}
+
+export function errorCodeOf(err: unknown): ErrorCode | undefined {
+  return err instanceof AppError ? err.code : undefined;
 }

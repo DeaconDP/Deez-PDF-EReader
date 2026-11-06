@@ -1,6 +1,7 @@
 import { getPdfBlob, getPdfMeta, updateProgress } from '../lib/library';
 import { PdfRenderer, setupSwipe, setupZoomGestures } from '../lib/pdf-renderer';
-import { formatError } from '../lib/errors';
+import { ErrorCodes, errorCodeOf, friendlyError } from '../lib/errors';
+import { pageBuddy } from '../components/illustration';
 import { logger } from '../lib/logger';
 import { loadReaderPrefs, saveReaderPrefs, type TextTheme } from '../lib/reader-prefs';
 import { showLoading } from '../components/loading';
@@ -23,50 +24,43 @@ export type ReaderView = {
 export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks): ReaderView {
   const isPreview = input.mode === 'preview';
   const pdfId = input.mode === 'library' ? input.pdfId : `preview:${input.resultId}`;
-  const backLabel = 'Back to library';
+  const backLabel = isPreview ? 'Back to results' : 'Back to library';
 
   const view = document.createElement('div');
   view.className = 'view reader-view';
 
   view.innerHTML = `
-    <div class="reader-progress" role="progressbar" aria-label="Reading progress" aria-valuemin="1" aria-valuenow="1" aria-valuemax="1" hidden>
-      <div class="reader-progress-fill"></div>
-    </div>
     <header class="reader-header">
-      <button class="btn-icon back-btn" aria-label="${backLabel}" title="${backLabel}">
+      <button type="button" class="btn-icon btn-back back-btn" aria-label="${backLabel}">
         <span class="icon" aria-hidden="true">${sym.back}</span>
+        <span class="btn-back-label" aria-hidden="true">${isPreview ? 'Results' : 'Library'}</span>
       </button>
-      <span class="page-indicator" aria-live="polite">1 / 1</span>
+      <div class="reader-heading">
+        <h1 class="pdf-title">Loading…</h1>
+        ${isPreview ? '<span class="reader-preview-tag">Preview · not saved yet</span>' : ''}
+      </div>
       <div class="reader-toolbar">
         ${
           isPreview
-            ? `<button class="btn btn-primary reader-add-btn" type="button">
+            ? `<button class="btn btn-primary btn-small reader-add-btn" type="button">
             <span class="icon" aria-hidden="true">${sym.add}</span>
-            <span class="btn-label">Add to library</span>
+            <span class="btn-label">Add</span>
           </button>`
             : ''
         }
-        <div class="reader-toolbar-nav">
-          <button class="btn-icon prev-btn" aria-label="Previous page" title="Previous page">
-            <span class="icon" aria-hidden="true">${sym.prev}</span>
-          </button>
-          <button class="btn-icon next-btn" aria-label="Next page" title="Next page">
-            <span class="icon" aria-hidden="true">${sym.next}</span>
-          </button>
-        </div>
         <div class="reader-toolbar-secondary">
-          <button class="btn-icon text-mode-btn" aria-pressed="false" aria-label="Text mode" title="Text mode">
+          <button type="button" class="btn-icon text-mode-btn" aria-pressed="false" aria-label="Text mode">
             <span class="icon" aria-hidden="true">${sym.text}</span>
           </button>
           <div class="font-size-controls" hidden>
-            <button class="btn-icon font-decrease-btn" aria-label="Decrease font size" title="Smaller text">
+            <button type="button" class="btn-icon font-decrease-btn" aria-label="Smaller text">
               <span class="icon" aria-hidden="true">${sym.fontDecrease}</span>
             </button>
-            <button class="btn-icon font-increase-btn" aria-label="Increase font size" title="Larger text">
+            <button type="button" class="btn-icon font-increase-btn" aria-label="Larger text">
               <span class="icon" aria-hidden="true">${sym.fontIncrease}</span>
             </button>
           </div>
-          <button class="btn-icon text-theme-btn" hidden aria-pressed="false" aria-label="Dark mode" title="Dark mode">
+          <button type="button" class="btn-icon text-theme-btn" hidden aria-pressed="false" aria-label="Dark page">
             <span class="icon text-theme-icon" aria-hidden="true">${sym.darkMode}</span>
           </button>
         </div>
@@ -74,39 +68,50 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
           <button type="button" class="btn-icon reader-overflow-btn" aria-expanded="false" aria-haspopup="menu" aria-label="Reading options">
             <span class="icon" aria-hidden="true">${sym.more}</span>
           </button>
-          <div class="reader-overflow-menu hidden" role="menu">
-            <button type="button" class="reader-overflow-item reader-overflow-text-mode" role="menuitem">
+          <div class="reader-overflow-menu hidden" role="menu" aria-label="Reading options">
+            <button type="button" class="reader-overflow-item reader-overflow-text-mode" role="menuitemcheckbox" aria-checked="false">
               <span class="icon" aria-hidden="true">${sym.text}</span>
-              Text mode
+              <span class="reader-overflow-label">Text mode</span>
+              <span class="reader-overflow-check icon" aria-hidden="true">${sym.check}</span>
             </button>
             <button type="button" class="reader-overflow-item reader-overflow-font-decrease" role="menuitem" hidden>
               <span class="icon" aria-hidden="true">${sym.fontDecrease}</span>
-              Smaller text
+              <span class="reader-overflow-label">Smaller text</span>
             </button>
             <button type="button" class="reader-overflow-item reader-overflow-font-increase" role="menuitem" hidden>
               <span class="icon" aria-hidden="true">${sym.fontIncrease}</span>
-              Larger text
+              <span class="reader-overflow-label">Larger text</span>
             </button>
             <button type="button" class="reader-overflow-item reader-overflow-theme" role="menuitem" hidden>
               <span class="icon reader-overflow-theme-icon" aria-hidden="true">${sym.darkMode}</span>
-              Dark mode
+              <span class="reader-overflow-label">Dark page</span>
             </button>
           </div>
         </div>
       </div>
     </header>
-    <p class="reader-tips" aria-live="polite"></p>
+    <div class="reader-progress" role="progressbar" aria-label="Reading progress" aria-valuemin="1" aria-valuenow="1" aria-valuemax="1" hidden>
+      <div class="reader-progress-fill"></div>
+    </div>
+    <p class="reader-tips"></p>
     <div class="reader-canvas-container">
       <div class="reader-canvas-wrapper">
-        <canvas class="reader-canvas"></canvas>
-        <div class="reader-text-panel" hidden aria-live="polite"></div>
+        <canvas class="reader-canvas" role="img" aria-label="Page"></canvas>
+        <div class="reader-text-panel" hidden></div>
       </div>
     </div>
-    <div class="swipe-hint" aria-hidden="true">
-      <span class="icon">${sym.swipe}</span>
-      <span class="swipe-hint-text">Swipe to turn pages</span>
-    </div>
-    <span class="visually-hidden pdf-title">Loading…</span>
+    <nav class="reader-bottom-bar" aria-label="Pages">
+      <div class="reader-toolbar-nav">
+        <button type="button" class="btn btn-secondary btn-page prev-btn" aria-label="Previous page">
+          <span class="icon" aria-hidden="true">${sym.prev}</span>
+        </button>
+        <span class="page-indicator" aria-live="polite">1 / 1</span>
+        <button type="button" class="btn btn-primary btn-page next-btn" aria-label="Next page">
+          <span class="icon" aria-hidden="true">${sym.next}</span>
+        </button>
+      </div>
+    </nav>
+    <div class="toast hidden" role="status" aria-live="polite"></div>
   `;
 
   const canvas = view.querySelector('.reader-canvas') as HTMLCanvasElement;
@@ -134,13 +139,25 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
   const canvasContainer = view.querySelector('.reader-canvas-container') as HTMLElement;
   const canvasWrapper = view.querySelector('.reader-canvas-wrapper') as HTMLElement;
   const readerTips = view.querySelector('.reader-tips') as HTMLElement;
+  const toast = view.querySelector('.toast') as HTMLElement;
 
-  const PAGE_MODE_TIPS = 'Use arrow keys to turn pages. Pinch or scroll to zoom.';
-  const TEXT_MODE_TIPS = 'Adjust font size with +/−. Toggle dark mode for easier reading.';
+  const isTouch = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  const PAGE_MODE_TIPS = isTouch
+    ? 'Swipe to turn pages · pinch to zoom'
+    : 'Arrow keys turn pages · pinch or scroll to zoom';
+  const TEXT_MODE_TIPS = 'Text size and page colour are in the options menu';
 
   function updateReaderTips(textMode: boolean): void {
-    const base = textMode ? TEXT_MODE_TIPS : PAGE_MODE_TIPS;
-    readerTips.textContent = isPreview ? `This preview is temporary. ${base}` : base;
+    readerTips.textContent = textMode ? TEXT_MODE_TIPS : PAGE_MODE_TIPS;
+  }
+
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  function showToast(message: string, isError = false): void {
+    clearTimeout(toastTimer);
+    toast.textContent = message;
+    toast.className = `toast ${isError ? 'toast-error' : 'toast-info'}`;
+    toast.setAttribute('role', isError ? 'alert' : 'status');
+    toastTimer = setTimeout(() => toast.classList.add('hidden'), isError ? 6000 : 4000);
   }
 
   const renderer = new PdfRenderer(canvas, textPanel, canvasContainer, canvasWrapper);
@@ -162,14 +179,13 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
     textTheme = theme;
     textPanel.classList.toggle('text-theme-dark', theme === 'dark');
     textPanel.classList.toggle('text-theme-light', theme === 'light');
-    const themeLabel = theme === 'dark' ? 'Light mode' : 'Dark mode';
+    const themeLabel = theme === 'dark' ? 'Light page' : 'Dark page';
     const themeIcon = theme === 'dark' ? sym.lightMode : sym.darkMode;
     textThemeBtn.setAttribute('aria-pressed', String(theme === 'dark'));
     textThemeBtn.setAttribute('aria-label', themeLabel);
-    textThemeBtn.setAttribute('title', themeLabel);
     textThemeBtn.classList.toggle('active', theme === 'dark');
-    textThemeIcon.textContent = themeIcon;
-    readerOverflowTheme.innerHTML = `<span class="icon reader-overflow-theme-icon" aria-hidden="true">${themeIcon}</span>${themeLabel}`;
+    textThemeIcon.innerHTML = themeIcon;
+    readerOverflowTheme.innerHTML = `<span class="icon reader-overflow-theme-icon" aria-hidden="true">${themeIcon}</span><span class="reader-overflow-label">${themeLabel}</span>`;
     persistPrefs({ textTheme: theme });
   }
 
@@ -182,6 +198,10 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
 
   function updatePageProgress(page: number, total: number): void {
     pageIndicator.textContent = `${page} / ${total}`;
+    pageIndicator.setAttribute('aria-label', `Page ${page} of ${total}`);
+    canvas.setAttribute('aria-label', `Page ${page} of ${total}. Turn on Text mode in Reading options to have it read aloud.`);
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = total > 0 && page >= total;
     if (total > 0) {
       progressFill.style.width = `${(page / total) * 100}%`;
       progressBar.setAttribute('aria-valuenow', String(page));
@@ -212,22 +232,38 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
     callbacks.onBack();
   });
 
-  addLibraryBtn?.addEventListener('click', () => {
-    void callbacks.onAddToLibrary?.();
+  addLibraryBtn?.addEventListener('click', async () => {
+    if (!callbacks.onAddToLibrary || addLibraryBtn.disabled) return;
+    const label = addLibraryBtn.querySelector('.btn-label');
+    addLibraryBtn.disabled = true;
+    addLibraryBtn.setAttribute('aria-busy', 'true');
+    if (label) label.textContent = 'Adding…';
+    try {
+      await callbacks.onAddToLibrary();
+    } catch (err) {
+      logger.logError('Failed to add preview to library', err);
+      showToast(friendlyError(err), true);
+      addLibraryBtn.disabled = false;
+      addLibraryBtn.removeAttribute('aria-busy');
+      if (label) label.textContent = 'Add';
+    }
   });
 
   prevBtn.addEventListener('click', () => renderer.prevPage());
   nextBtn.addEventListener('click', () => renderer.nextPage());
 
   function closeReaderOverflowMenu() {
+    if (readerOverflowMenu.classList.contains('hidden')) return;
+    const hadFocus = readerOverflowMenu.contains(document.activeElement);
     readerOverflowMenu.classList.add('hidden');
     readerOverflowBtn.setAttribute('aria-expanded', 'false');
+    if (hadFocus) readerOverflowBtn.focus();
   }
 
   function openReaderOverflowMenu() {
     readerOverflowMenu.classList.remove('hidden');
     readerOverflowBtn.setAttribute('aria-expanded', 'true');
-    readerOverflowMenu.querySelector<HTMLElement>('[role="menuitem"]:not([hidden])')?.focus();
+    readerOverflowMenu.querySelector<HTMLElement>('.reader-overflow-item:not([hidden])')?.focus();
   }
 
   readerOverflowBtn.addEventListener('click', (e) => {
@@ -249,6 +285,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
     view.classList.toggle('text-mode', enabled);
     textModeBtn.setAttribute('aria-pressed', String(enabled));
     textModeBtn.classList.toggle('active', enabled);
+    readerOverflowTextMode.setAttribute('aria-checked', String(enabled));
     fontSizeControls.hidden = !enabled;
     textThemeBtn.hidden = !enabled;
     readerOverflowFontDecrease.hidden = !enabled;
@@ -379,8 +416,52 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
 
   view.addEventListener('remove', destroy);
 
+  function showError(message: string, hint: string): void {
+    errorShown = true;
+    view.classList.add('reader-has-error');
+    const stage = view.querySelector('.reader-canvas-container') as HTMLElement;
+    stage.hidden = true;
+    view.querySelector('.reader-bottom-bar')?.setAttribute('hidden', '');
+    readerTips.hidden = true;
+    const box = document.createElement('div');
+    box.className = 'error-state';
+    box.setAttribute('role', 'alert');
+    box.innerHTML = `
+      <div class="error-illustration" aria-hidden="true">${pageBuddy('sad', 120)}</div>
+      <h2 class="error-title">We couldn’t open this one</h2>
+      <p class="error-detail">${escapeHtml(message)}</p>
+      ${hint ? `<p class="error-hint">${escapeHtml(hint)}</p>` : ''}
+      <div class="error-actions">
+        <button type="button" class="btn btn-primary retry-btn">
+          <span class="icon" aria-hidden="true">${sym.refresh}</span><span class="btn-label">Try again</span>
+        </button>
+        <button type="button" class="btn btn-secondary back-error-btn">
+          <span class="icon" aria-hidden="true">${sym.back}</span><span class="btn-label">${backLabel}</span>
+        </button>
+      </div>
+    `;
+    stage.after(box);
+    box.querySelector('.back-error-btn')?.addEventListener('click', () => {
+      destroy();
+      callbacks.onBack();
+    });
+    box.querySelector('.retry-btn')?.addEventListener('click', () => {
+      box.remove();
+      stage.hidden = false;
+      view.querySelector('.reader-bottom-bar')?.removeAttribute('hidden');
+      readerTips.hidden = false;
+      view.classList.remove('reader-has-error');
+      errorShown = false;
+      void load();
+    });
+    (box.querySelector('.retry-btn') as HTMLElement | null)?.focus();
+  }
+
+  let errorShown = false;
+
   async function load(): Promise<void> {
-    const hideLoading = showLoading(view, isPreview ? 'Loading preview...' : 'Opening PDF...');
+    if (errorShown) return;
+    const hideLoading = showLoading(view, isPreview ? 'Fetching the preview…' : 'Opening your PDF…');
     canvas.classList.remove('rendered');
     textPanel.classList.remove('rendered');
     try {
@@ -414,20 +495,8 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
       }
     } catch (err) {
       logger.logError('Failed to open PDF', err);
-      view.innerHTML = `
-        <div class="error-state">
-          <span class="error-icon icon" aria-hidden="true">${sym.warn}</span>
-          <p>Failed to open PDF</p>
-          <p class="error-detail">${escapeHtml(formatError(err))}</p>
-          <button class="btn-icon back-error-btn" aria-label="${backLabel}" title="${backLabel}">
-            <span class="icon" aria-hidden="true">${sym.back}</span>
-          </button>
-        </div>
-      `;
-      view.querySelector('.back-error-btn')?.addEventListener('click', () => {
-        destroy();
-        callbacks.onBack();
-      });
+      const unreadable = errorCodeOf(err) === ErrorCodes.PDF_003;
+      showError(friendlyError(err), unreadable ? 'Remove it from your library, then add the file again.' : '');
     } finally {
       hideLoading();
     }

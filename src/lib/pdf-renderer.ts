@@ -130,6 +130,7 @@ export class PdfRenderer {
       this.onPageChange?.(this.currentPage, this.totalPages);
       this.scheduleSave();
     } catch (err) {
+      logger.logError(`PDF load failed (${this.pdfId})`, err);
       throw new AppError(ErrorCodes.PDF_001, this.pdfId);
     }
   }

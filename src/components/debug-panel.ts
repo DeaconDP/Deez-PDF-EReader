@@ -58,6 +58,8 @@ function escapeHtml(text: string): string {
 export function initDebugPanel(container: HTMLElement): void {
   panelEl = document.createElement('div');
   panelEl.className = 'debug-panel hidden';
+  panelEl.setAttribute('role', 'dialog');
+  panelEl.setAttribute('aria-label', 'Debug log');
   container.appendChild(panelEl);
 
   logger.subscribe(() => {

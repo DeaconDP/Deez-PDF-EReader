@@ -1,7 +1,8 @@
-import './styles/cyberpunk.css';
+import './styles/tokens.css';
+import './styles/app.css';
 import { createLibraryView, type LibraryTab } from './views/library';
 import { createReaderView } from './views/reader';
-import { initDebugPanel, onCreditClick } from './components/debug-panel';
+import { initDebugPanel } from './components/debug-panel';
 import { addLookupResultToLibrary } from './lib/library';
 import { logger } from './lib/logger';
 import { initNativeShell } from './lib/native-shell';
@@ -13,6 +14,8 @@ let currentView: HTMLElement | null = null;
 
 function mount(view: HTMLElement) {
   if (currentView) {
+    // Views listen for this to tear down (the reader frees its PDF and listeners).
+    currentView.dispatchEvent(new Event('remove'));
     currentView.remove();
   }
   currentView = view;
@@ -67,31 +70,12 @@ async function openPreviewReader(
       onAddToLibrary: async () => {
         const meta = await addLookupResultToLibrary(result);
         logger.info(`Added lookup preview to library: ${meta.name}`);
-        showLibrary();
+        showLibrary({ tab: 'library' });
       },
     },
   );
   mount(view);
   await load();
-}
-
-function setupFooter() {
-  const footer = document.createElement('footer');
-  footer.className = 'app-footer';
-  footer.innerHTML = `
-    <span class="credit">
-      Created by
-      <a href="https://deac.online" target="_blank" rel="noopener" class="credit-link">deac.online</a>
-      @
-      <a href="https://worldbuild.io" target="_blank" rel="noopener" class="credit-link">worldbuild.io</a>
-    </span>
-  `;
-  footer.querySelectorAll('.credit-link').forEach((link) => {
-    link.addEventListener('click', () => {
-      onCreditClick();
-    });
-  });
-  app.appendChild(footer);
 }
 
 async function setupPWA() {
@@ -103,7 +87,6 @@ async function setupPWA() {
 
 async function boot() {
   logger.info('DeezPDF Reader starting');
-  setupFooter();
   initDebugPanel(app);
   await initNativeShell();
   await setupPWA();

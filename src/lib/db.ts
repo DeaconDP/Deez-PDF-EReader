@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { StoredPdfData } from './pdf-data';
 
 export interface PdfRecord {
   id: string;
@@ -8,7 +9,8 @@ export interface PdfRecord {
   lastOpened: number;
   currentPage: number;
   totalPages: number;
-  data: Blob;
+  /** ArrayBuffer for new records; legacy records may still hold a Blob (see pdf-data.ts). */
+  data: StoredPdfData;
 }
 
 class DeezPdfDatabase extends Dexie {

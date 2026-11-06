@@ -1,0 +1,177 @@
+/*
+ * DeezPDF design tokens: the single source of truth for colour, type, shape,
+ * depth, spacing and motion. Components in app.css only reference these.
+ *
+ * House style ("Duolingo meets kurzgesagt") distilled from Dale's recent apps:
+ * GoldenMean (DesignSystem/Theme.swift, Components.swift), Pawnly
+ * (Design/Theme.swift, ColorTheme.swift), Goggly (Design/Theme.swift) for the
+ * chunky lipped controls and SF Rounded type; HabitBalance (Design/Palette.swift,
+ * Illustrations.swift) for flat glowing illustration. See docs/redesign/STYLE.md.
+ *
+ * Every text/background pair below was checked for WCAG 2.2 AA (4.5:1 text,
+ * 3:1 control outlines) in both schemes.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ── Brand ─────────────────────────────────────────────── */
+  --primary: #1cb0f6;          /* sky: keeps DeezPDF's cyan identity */
+  --primary-lip: #1899d6;
+  --primary-bright: #3dc2ff;
+  --on-primary: #0b2a3d;       /* dark ink on sky: 6.1:1 (white fails at 2.4:1) */
+  --pink: #ff86d0;             /* DeezPDF's magenta, softened */
+  --gold: #ffc800;
+  --gold-lip: #e5b400;
+  --success: #58cc02;
+  --danger: #d8352f;           /* white text 4.7:1 */
+  --danger-lip: #b02420;
+
+  /* ── Neutrals: light ───────────────────────────────────── */
+  --bg: #ffffff;
+  --bg-soft: #f4f7f9;
+  --surface: #ffffff;
+  --surface-sunken: #f4f7f9;
+  --border: #e5e5e5;
+  --border-lip: #cecece;
+  --border-strong: #8a8f94;    /* input outlines: 3.3:1 */
+  --text: #3c3c3c;
+  --text-muted: #5f666d;       /* 5.4:1 on bg-soft */
+  --primary-ink: #0870a6;      /* sky as text on white: 5.4:1 */
+  --primary-tint: #ddf4ff;
+  --pink-ink: #a3266e;
+  --pink-tint: #ffe3f2;
+  --danger-ink: #c21f1f;
+  --danger-tint: #ffe1e1;
+  --success-ink: #2f7a02;
+  --success-tint: #d7ffb8;
+  --gold-ink: #7a5600;
+  --gold-tint: #fff4cc;
+  --locked: #e8e6e0;
+  --locked-lip: #cfccc3;
+  --locked-ink: #5c5b57;
+  --scrim: rgba(19, 31, 36, 0.45);
+  --reader-stage: #e9eef2;
+
+  /* Illustration (flat, no outlines) */
+  --illo-orb: #ddf4ff;
+  --illo-orb-inner: #c4ecff;
+  --illo-page: #ffffff;
+  --illo-fold: #a6e1ff;
+  --illo-ink: #233a47;
+  --illo-cheek: #ffb3dd;
+  --illo-star: #ffc800;
+  --illo-star-2: #ff86d0;
+  --illo-shadow: rgba(24, 153, 214, 0.18);
+
+  /* ── Type (system only: SF Pro Rounded on Apple) ───────── */
+  --font-body: ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-reading: ui-serif, 'New York', Georgia, 'Times New Roman', serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* rem follows iOS Dynamic Type via html { font: -apple-system-body } */
+  --text-micro: 0.75rem;
+  --text-caption: 0.8125rem;
+  --text-small: 0.875rem;
+  --text-body: 1rem;
+  --text-headline: 1.0625rem;
+  --text-title: 1.375rem;
+  --text-display: 1.875rem;
+  --weight-body: 500;
+  --weight-support: 600;
+  --weight-label: 700;
+  --weight-heading: 800;
+  --weight-display: 900;
+  --tracking-button: 0.04em;
+
+  /* ── Shape & depth ─────────────────────────────────────── */
+  --radius-sm: 12px;
+  --radius: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+  --lip: 4px;                  /* chunky bottom edge, the house signature */
+  --lip-sm: 3px;
+  --border-w: 2px;
+
+  /* ── Spacing ───────────────────────────────────────────── */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-7: 14px;
+  --space-8: 16px;
+  --space-9: 20px;
+  --space-10: 24px;
+  --space-12: 32px;
+  --page-pad: 18px;
+  --card-pad: 16px;
+  --tap-min: 44px;
+  --button-h: 52px;
+  --content-max: 720px;
+
+  /* ── Motion (springs approximated for CSS) ─────────────── */
+  --ease-snappy: cubic-bezier(0.34, 1.3, 0.64, 1);
+  --ease-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-gentle: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-press: 120ms;
+  --dur-fast: 180ms;
+  --dur-snappy: 280ms;
+  --dur-bouncy: 420ms;
+  --dur-gentle: 550ms;
+  --press-scale: 0.96;
+}
+
+/* ── Neutrals: dark (deep blue-slate so the brights still sing) ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131f24;
+    --bg-soft: #131f24;
+    --surface: #1c2b33;
+    --surface-sunken: #172429;
+    --border: #37464f;
+    --border-lip: #0b1418;
+    --border-strong: #6f8796;
+    --text: #f1f7fb;
+    --text-muted: #a5b5c1;
+    --primary-ink: #5ccbff;
+    --primary-tint: #123547;
+    --pink-ink: #ff9bd2;
+    --pink-tint: #3a1f33;
+    --danger-ink: #ff8a8a;
+    --danger-tint: #45202a;
+    --success-ink: #8ee33a;
+    --success-tint: #1f3a16;
+    --gold-ink: #ffd34d;
+    --gold-tint: #3a3115;
+    --locked: #2c3f4c;
+    --locked-lip: #213240;
+    --locked-ink: #a5b5c1;
+    --scrim: rgba(5, 10, 12, 0.66);
+    --reader-stage: #0e171b;
+
+    --illo-orb: #17384a;
+    --illo-orb-inner: #1d4a61;
+    --illo-page: #f1f7fb;
+    --illo-fold: #5ccbff;
+    --illo-ink: #13232b;
+    --illo-cheek: #ff86d0;
+    --illo-shadow: rgba(0, 0, 0, 0.35);
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --text-muted: #4e545a;
+    --border: #8a8f94;
+    --border-strong: #5f666d;
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --text-muted: #c2cfd8;
+    --border: #6f8796;
+    --border-strong: #a5b5c1;
+  }
+}

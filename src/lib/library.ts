@@ -9,6 +9,7 @@ import {
   supportsSaveFilePicker,
 } from './download';
 import { getCachedPreviewBlob } from './lookup/preview-cache';
+import { pdfBytesToBlob, readStoredPdfData } from './pdf-data';
 import type { LookupResult } from './lookup/types';
 
 export type PdfMeta = Omit<PdfRecord, 'data'>;
@@ -55,7 +56,7 @@ function matchesFilter(pdf: PdfMeta, filter: PdfFilter): boolean {
 
 async function fileToRecord(file: File): Promise<PdfRecord> {
   try {
-    const data = new Blob([await file.arrayBuffer()], { type: 'application/pdf' });
+    const data = await file.arrayBuffer();
     return {
       id: generateId(),
       name: file.name,
@@ -241,7 +242,15 @@ export async function getPdfBlob(id: string): Promise<Blob> {
   if (!record) {
     throw new AppError(ErrorCodes.LIB_001, `not found: ${id}`);
   }
-  return record.data;
+  const { bytes, needsMigration } = await readStoredPdfData(record.data);
+  if (needsMigration) {
+    // Rewrite legacy Blob records as plain bytes while they are still readable.
+    db.pdfs
+      .update(id, { data: bytes.slice(0) })
+      .then(() => logger.info(`Migrated stored PDF ${id} to ArrayBuffer`))
+      .catch((err) => logger.logError(`Failed to migrate stored PDF ${id}`, err));
+  }
+  return pdfBytesToBlob(bytes);
 }
 
 export async function updateProgress(

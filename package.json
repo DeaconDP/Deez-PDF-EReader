@@ -1,7 +1,7 @@
 {
   "name": "deezpdf-reader",
   "version": "1.0.0",
-  "description": "A cyberpunk-styled PDF reader PWA with local library support",
+  "description": "A friendly, offline PDF reader PWA with a local library",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -16,7 +16,8 @@
     "ios:archive": "bash scripts/ios-archive.sh",
     "ios:export": "bash scripts/ios-export.sh",
     "start": "node launcher/index.js",
-    "build:exe": "pkg launcher/index.js --targets node18-win-x64 --output DeezPDFReader.exe"
+    "build:exe": "pkg launcher/index.js --targets node18-win-x64 --output DeezPDFReader.exe",
+    "test": "node --test --experimental-strip-types tests/*.test.ts"
   },
   "author": "deac.online",
   "license": "MIT",

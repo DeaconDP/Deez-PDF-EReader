@@ -1,0 +1,1579 @@
+/*
+ * DeezPDF components. Uses tokens from tokens.css only: no raw colours,
+ * radii or durations here. Classes toggled by JS (.hidden, .active,
+ * .rendered, .zoomed, .text-mode, .text-theme-*, .reader-active,
+ * .view-enter, .pdf-card-unread, .toast-*) keep their meaning.
+ */
+
+/* ── Base ─────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* iOS Dynamic Type: the root size follows the user's text-size setting */
+  font: -apple-system-body;
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  font-weight: var(--weight-body);
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--bg-soft);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+[hidden],
+.hidden {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.svg-icon {
+  width: 100%;
+  height: 100%;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+#app.reader-active {
+  max-width: none;
+}
+
+.view {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.view-enter {
+  animation: viewIn var(--dur-snappy) var(--ease-gentle);
+}
+
+/* ── Buttons: chunky, with a solid lip they sink into ───────── */
+.btn {
+  --btn-bg: var(--surface);
+  --btn-ink: var(--primary-ink);
+  --btn-edge: var(--border);
+  --btn-lip: var(--border-lip);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-height: var(--button-h);
+  margin-bottom: var(--lip);
+  padding: var(--space-4) var(--space-9);
+  border: var(--border-w) solid var(--btn-edge);
+  border-radius: var(--radius);
+  background: var(--btn-bg);
+  color: var(--btn-ink);
+  box-shadow: 0 var(--lip) 0 var(--btn-lip);
+  font-size: var(--text-body);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  line-height: 1.15;
+  text-align: center;
+  text-transform: uppercase;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    transform var(--dur-press) ease-out,
+    box-shadow var(--dur-press) ease-out,
+    background-color var(--dur-fast) ease-out;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(var(--lip));
+  box-shadow: 0 0 0 var(--btn-lip);
+}
+
+.btn .icon {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.btn-primary {
+  --btn-bg: var(--primary);
+  --btn-ink: var(--on-primary);
+  --btn-edge: var(--primary);
+  --btn-lip: var(--primary-lip);
+}
+
+.btn-secondary {
+  --btn-bg: var(--surface);
+  --btn-ink: var(--primary-ink);
+}
+
+.btn-ghost {
+  --btn-bg: transparent;
+  --btn-ink: var(--text-muted);
+  --btn-edge: transparent;
+  --btn-lip: transparent;
+}
+
+.btn-done,
+.btn-done:disabled {
+  --btn-bg: var(--success-tint);
+  --btn-ink: var(--success-ink);
+  --btn-edge: var(--success-tint);
+  --btn-lip: transparent;
+  cursor: default;
+}
+
+.btn:disabled:not(.btn-done) {
+  --btn-bg: var(--locked);
+  --btn-ink: var(--locked-ink);
+  --btn-edge: var(--locked);
+  --btn-lip: var(--locked-lip);
+  cursor: default;
+}
+
+.btn-small {
+  min-height: var(--tap-min);
+  padding: var(--space-3) var(--space-7);
+  font-size: var(--text-small);
+  margin-bottom: var(--lip-sm);
+  box-shadow: 0 var(--lip-sm) 0 var(--btn-lip);
+}
+
+.btn-small:active:not(:disabled) {
+  transform: translateY(var(--lip-sm));
+}
+
+/* File input lives inside its label: show the label's focus ring */
+.add-pdf-btn:focus-within {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.btn-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  transition:
+    transform var(--dur-press) ease-out,
+    background-color var(--dur-fast) ease-out,
+    color var(--dur-fast) ease-out;
+}
+
+.btn-icon .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.btn-icon:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+  background: var(--surface-sunken);
+}
+
+.btn-icon.active,
+.btn-icon[aria-pressed='true'] {
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+
+.btn-icon-danger:active:not(:disabled) {
+  background: var(--danger-tint);
+  color: var(--danger-ink);
+}
+
+/* ── Inputs ───────────────────────────────────────────────── */
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: var(--space-7);
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input,
+.lookup-query-input,
+.download-url-input,
+.pdf-name-input {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-4) var(--space-7);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: var(--weight-support);
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    border-color var(--dur-fast) ease-out,
+    box-shadow var(--dur-fast) ease-out;
+}
+
+.search-input,
+.lookup-query-input {
+  padding-left: calc(var(--space-7) + 1.25rem + var(--space-5));
+}
+
+.search-input::placeholder,
+.lookup-query-input::placeholder,
+.download-url-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.search-input:focus,
+.lookup-query-input:focus,
+.download-url-input:focus,
+.pdf-name-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-tint);
+}
+
+/* ── Library shell ────────────────────────────────────────── */
+.library-shell-header {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--page-pad) var(--space-6);
+}
+
+.library-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.brand-logo {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+}
+
+.logo {
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.logo .accent {
+  color: var(--primary-ink);
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+.segmented-control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-heading);
+  transition:
+    background-color var(--dur-fast) ease-out,
+    color var(--dur-fast) ease-out,
+    transform var(--dur-press) ease-out;
+}
+
+.segmented-control-btn:active {
+  transform: scale(var(--press-scale));
+}
+
+.segmented-control-btn[aria-selected='true'] {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+
+.library-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-2) var(--page-pad) 0;
+}
+
+.library-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.library-toolbar-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: var(--space-5) var(--space-6);
+}
+
+.library-toolbar-actions .btn {
+  margin-bottom: var(--lip);
+}
+
+.library-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin: var(--space-7) 0 var(--space-6);
+}
+
+.control-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--lip-sm);
+}
+
+.control-label select {
+  min-height: var(--tap-min);
+  padding: var(--space-2) calc(var(--space-6) + 1rem) var(--space-2) calc(var(--space-6) + 1.25rem);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: 0 var(--lip-sm) 0 var(--border-lip);
+  color: var(--text);
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.control-glyph {
+  position: absolute;
+  left: var(--space-6);
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--primary-ink);
+  pointer-events: none;
+}
+
+.control-chevron {
+  position: absolute;
+  right: var(--space-5);
+  width: 1rem;
+  height: 1rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.library-panel--empty .library-toolbar .search-box,
+.library-panel--empty .library-controls {
+  display: none;
+}
+
+.library-panel--empty .empty-state {
+  padding-top: var(--space-6);
+}
+
+.library-count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-label);
+}
+
+/* ── PDF cards ────────────────────────────────────────────── */
+.pdf-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-bottom: var(--lip);
+}
+
+.pdf-card {
+  display: flex;
+  align-items: stretch;
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+  transition:
+    transform var(--dur-press) ease-out,
+    box-shadow var(--dur-press) ease-out;
+}
+
+.pdf-card:has(.pdf-card-info:active) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--border-lip);
+}
+
+.pdf-list--animate .pdf-card,
+.lookup-results .lookup-card {
+  animation: popIn var(--dur-bouncy) var(--ease-bouncy) both;
+  animation-delay: calc(var(--stagger, 0) * 40ms);
+}
+
+.pdf-card-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+  min-height: var(--tap-min);
+  padding: var(--space-7) var(--space-2) var(--space-7) var(--space-7);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  cursor: pointer;
+}
+
+.pdf-card-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+
+.pdf-card-icon .svg-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.pdf-card-unread .pdf-card-icon {
+  background: var(--pink-tint);
+  color: var(--pink-ink);
+}
+
+.pdf-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.pdf-name {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.pdf-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-support);
+}
+
+.pdf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  text-transform: uppercase;
+}
+
+.pdf-badge .icon {
+  width: 1em;
+  height: 1em;
+}
+
+.pdf-badge-new {
+  background: var(--pink-tint);
+  color: var(--pink-ink);
+}
+
+.pdf-badge-done {
+  background: var(--success-tint);
+  color: var(--success-ink);
+}
+
+.pdf-progress-text {
+  color: var(--primary-ink);
+  font-weight: var(--weight-label);
+}
+
+.pdf-progress,
+.reader-progress {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--locked);
+}
+
+.pdf-progress {
+  height: 8px;
+  margin-top: var(--space-2);
+}
+
+.pdf-progress-fill,
+.reader-progress-fill {
+  position: relative;
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+}
+
+/* Glossy highlight strip, as on the house progress bars */
+.pdf-progress-fill::after,
+.reader-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 20%;
+  left: 6px;
+  right: 6px;
+  height: 26%;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.pdf-card-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+}
+
+.pdf-name-input {
+  min-height: var(--tap-min);
+  border-color: var(--primary);
+  font-weight: var(--weight-label);
+}
+
+/* ── Empty states ─────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+}
+
+.empty-illustration {
+  margin-bottom: var(--space-4);
+}
+
+.empty-message {
+  color: var(--text);
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+  line-height: 1.2;
+}
+
+.empty-hint {
+  max-width: 30ch;
+  color: var(--text-muted);
+  font-size: var(--text-body);
+  font-weight: var(--weight-support);
+}
+
+.empty-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 20rem;
+  margin-top: var(--space-6);
+}
+
+.empty-state > .btn {
+  margin-top: var(--space-6);
+}
+
+/* ── Illustration ─────────────────────────────────────────── */
+.illo {
+  display: block;
+  overflow: visible;
+}
+
+.illo-orb { fill: var(--illo-orb); }
+.illo-orb-inner { fill: var(--illo-orb-inner); }
+.illo-page { fill: var(--illo-page); }
+.illo-fold { fill: var(--illo-fold); }
+.illo-ink { fill: var(--illo-ink); }
+.illo-glint { fill: var(--illo-page); }
+.illo-cheek { fill: var(--illo-cheek); }
+.illo-star { fill: var(--illo-star); }
+.illo-star-2 { fill: var(--illo-star-2); }
+.illo-shadow { fill: var(--illo-shadow); }
+
+.illo-line {
+  fill: none;
+  stroke: var(--illo-ink);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.illo-float {
+  animation: float 3.2s var(--ease-gentle) infinite alternate;
+  transform-origin: 60px 62px;
+}
+
+.illo-star,
+.illo-star-2 {
+  animation: twinkle 2.4s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.illo-star-2 {
+  animation-delay: -1.2s;
+}
+
+/* ── Footer (in the scroll flow, never covering content) ───── */
+.app-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-12);
+  padding: var(--space-6) 0 calc(var(--space-8) + env(safe-area-inset-bottom));
+  border-top: var(--border-w) dashed var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-support);
+  text-align: center;
+}
+
+.privacy-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-weight: var(--weight-label);
+}
+
+.privacy-note .icon {
+  color: var(--gold-ink);
+}
+
+.credit-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-2);
+  color: var(--primary-ink);
+  font-weight: var(--weight-label);
+  text-decoration: none;
+}
+
+/* ── Toast ────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + var(--space-6));
+  left: 50%;
+  z-index: 300;
+  width: max-content;
+  max-width: min(calc(100vw - 2 * var(--page-pad)), 30rem);
+  padding: var(--space-6) var(--space-8);
+  border: var(--border-w) solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--primary-lip);
+  color: var(--text);
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+  text-align: center;
+  transform: translateX(-50%);
+  animation: toastIn var(--dur-bouncy) var(--ease-bouncy);
+}
+
+.toast-error {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+  box-shadow: 0 var(--lip) 0 var(--danger-lip);
+  color: var(--danger-ink);
+}
+
+/* ── Add-from-link dialog ─────────────────────────────────────
+   Anchored to the top on phones: the iOS keyboard does not resize the
+   web view, so a bottom sheet would hide its own buttons. */
+.download-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--page-pad);
+  padding-top: calc(env(safe-area-inset-top) + var(--space-10));
+  background: var(--scrim);
+  animation: fadeIn var(--dur-fast) ease-out;
+}
+
+.download-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: min(100%, 28rem);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-9);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+  animation: sheetUp var(--dur-bouncy) var(--ease-snappy);
+}
+
+.download-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.download-dialog-title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+}
+
+.download-dialog-hint,
+.download-save-hint {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-support);
+}
+
+.download-url-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.control-text {
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+}
+
+.download-dialog-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-5);
+  margin-top: var(--space-2);
+}
+
+/* ── Find Online ──────────────────────────────────────────── */
+.lookup-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.lookup-search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.lookup-search-bar .search-box {
+  flex: 1 1 12rem;
+}
+
+.lookup-search-btn {
+  min-height: 48px;
+}
+
+.lookup-filters {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0 calc(-1 * var(--page-pad));
+  padding: var(--space-6) var(--page-pad) var(--space-3);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lookup-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.lookup-filter-chip {
+  flex: none;
+  min-height: var(--tap-min);
+  margin-bottom: var(--lip-sm);
+  padding: var(--space-2) var(--space-8);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: 0 var(--lip-sm) 0 var(--border-lip);
+  color: var(--text);
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+  white-space: nowrap;
+  transition:
+    transform var(--dur-press) ease-out,
+    box-shadow var(--dur-press) ease-out;
+}
+
+.lookup-filter-chip:active {
+  transform: translateY(var(--lip-sm));
+  box-shadow: 0 0 0 var(--border-lip);
+}
+
+.lookup-filter-chip.active {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+  box-shadow: 0 var(--lip-sm) 0 var(--primary-lip);
+  color: var(--primary-ink);
+}
+
+.lookup-disclaimer {
+  margin: var(--space-3) 0 var(--space-6);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-support);
+}
+
+.lookup-notice {
+  margin-bottom: var(--space-6);
+  padding: var(--space-5) var(--space-7);
+  border-radius: var(--radius);
+  background: var(--gold-tint);
+  color: var(--gold-ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+}
+
+.lookup-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--card-pad);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+}
+
+.lookup-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.lookup-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.lookup-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-caption);
+}
+
+.lookup-source-badge {
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  text-transform: uppercase;
+}
+
+.lookup-source-archive {
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+
+.lookup-source-gutenberg {
+  background: var(--success-tint);
+  color: var(--success-ink);
+}
+
+.lookup-source-web {
+  background: var(--pink-tint);
+  color: var(--pink-ink);
+}
+
+.lookup-card-authors {
+  color: var(--text-muted);
+  font-weight: var(--weight-support);
+}
+
+.lookup-snippet {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.lookup-card-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+
+/* ── Reader ───────────────────────────────────────────────── */
+.reader-view {
+  background: var(--reader-stage);
+}
+
+.reader-header {
+  position: relative;
+  z-index: 10;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-w) solid var(--border);
+  background: var(--surface);
+}
+
+.btn-back {
+  gap: 0;
+  padding: 0 var(--space-4) 0 var(--space-1);
+  color: var(--primary-ink);
+  font-weight: var(--weight-heading);
+}
+
+.btn-back-label {
+  font-size: var(--text-body);
+}
+
+.reader-heading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.pdf-title {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-preview-tag {
+  color: var(--pink-ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-label);
+}
+
+.reader-has-error .reader-toolbar,
+.reader-has-error .reader-progress {
+  display: none;
+}
+
+.reader-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.reader-add-btn {
+  margin-bottom: var(--lip-sm);
+}
+
+.reader-toolbar-secondary,
+.font-size-controls {
+  display: none;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.reader-toolbar-overflow {
+  position: relative;
+}
+
+.reader-overflow-menu {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 14rem;
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+  animation: popIn var(--dur-snappy) var(--ease-snappy);
+  transform-origin: top right;
+}
+
+.reader-overflow-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-weight: var(--weight-label);
+  text-align: left;
+}
+
+.reader-overflow-item:active {
+  background: var(--surface-sunken);
+}
+
+.reader-overflow-item > .icon:first-child {
+  color: var(--primary-ink);
+}
+
+.reader-overflow-check {
+  margin-left: auto;
+  color: var(--primary-ink);
+  visibility: hidden;
+}
+
+.reader-overflow-item[aria-checked='true'] .reader-overflow-check {
+  visibility: visible;
+}
+
+.reader-progress {
+  flex: none;
+  height: 6px;
+  border-radius: 0;
+}
+
+.reader-progress-fill {
+  width: 0%;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  transition: width var(--dur-snappy) var(--ease-gentle);
+}
+
+.reader-progress-fill::after {
+  display: none;
+}
+
+.reader-tips {
+  flex: none;
+  padding: var(--space-3) var(--space-6);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-support);
+  text-align: center;
+}
+
+.reader-canvas-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: var(--space-2) var(--space-6) var(--space-6);
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.reader-canvas-container.zoomed {
+  display: block;
+  overflow: auto;
+}
+
+.reader-canvas-wrapper {
+  line-height: 0;
+}
+
+.reader-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 var(--border-w) var(--border),
+    0 var(--lip) 0 var(--border-w) var(--border-lip);
+  opacity: 0;
+  transition: opacity var(--dur-snappy) ease-out;
+}
+
+.reader-canvas-container.zoomed .reader-canvas {
+  max-width: none;
+  max-height: none;
+}
+
+.reader-canvas.rendered,
+.reader-text-panel.rendered {
+  opacity: 1;
+}
+
+.reader-text-panel {
+  display: none;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--space-9) var(--space-9) var(--space-12);
+  border-radius: var(--radius);
+  font-family: var(--font-reading);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  opacity: 0;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  transition: opacity var(--dur-snappy) ease-out;
+}
+
+/* Reading surfaces: warm paper / soft night (contrast 15:1 both) */
+.reader-text-panel.text-theme-light {
+  background: #f5f2ea;
+  color: #1a1d24;
+}
+
+.reader-text-panel.text-theme-dark {
+  background: #10181d;
+  color: #eceff3;
+}
+
+.reader-view.text-mode .reader-canvas-container {
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
+}
+
+.reader-view.text-mode .reader-canvas-wrapper {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  line-height: normal;
+}
+
+.reader-view.text-mode .reader-text-panel {
+  display: block;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  max-width: 46rem;
+  max-height: none;
+  margin: 0 auto;
+  border: var(--border-w) solid var(--border);
+}
+
+.reader-view.text-mode .reader-canvas {
+  display: none;
+}
+
+.reader-bottom-bar {
+  flex: none;
+  padding: var(--space-5) var(--page-pad) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-top: var(--border-w) solid var(--border);
+  background: var(--surface);
+}
+
+.reader-toolbar-nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-6);
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.btn-page {
+  width: 100%;
+  padding: 0;
+}
+
+.btn-page .icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.page-indicator {
+  min-width: 5ch;
+  padding-bottom: var(--lip);
+  color: var(--text);
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.error-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-10) var(--page-pad);
+  overflow-y: auto;
+  text-align: center;
+}
+
+.error-title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+}
+
+.error-detail {
+  max-width: 32ch;
+  color: var(--text);
+  font-weight: var(--weight-support);
+}
+
+.error-hint {
+  max-width: 32ch;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-support);
+}
+
+.error-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 20rem;
+  margin-top: var(--space-6);
+}
+
+/* ── Loading ──────────────────────────────────────────────── */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--page-pad);
+  background: var(--scrim);
+  animation: fadeIn var(--dur-fast) ease-out;
+}
+
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-7);
+  max-width: 20rem;
+  padding: var(--space-10) var(--space-12);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+  animation: popIn var(--dur-bouncy) var(--ease-bouncy);
+}
+
+.loading-dots {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.loading-dots span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: hop 900ms var(--ease-gentle) infinite;
+}
+
+.loading-dots span:nth-child(2) {
+  background: var(--pink);
+  animation-delay: 120ms;
+}
+
+.loading-dots span:nth-child(3) {
+  background: var(--gold);
+  animation-delay: 240ms;
+}
+
+.loading-text {
+  color: var(--text);
+  font-weight: var(--weight-label);
+  text-align: center;
+}
+
+/* ── Debug panel (hidden tool) ────────────────────────────── */
+.debug-panel {
+  position: fixed;
+  right: var(--space-8);
+  bottom: calc(var(--space-8) + env(safe-area-inset-bottom));
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  width: min(25rem, calc(100vw - 2rem));
+  max-height: 50vh;
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+}
+
+.debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-6);
+  border-bottom: var(--border-w) solid var(--border);
+  font-size: var(--text-small);
+  font-weight: var(--weight-heading);
+}
+
+.debug-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+}
+
+.debug-stats,
+.debug-entries {
+  padding: var(--space-4) var(--space-6);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+}
+
+.debug-stats {
+  border-bottom: var(--border-w) solid var(--border);
+  color: var(--text-muted);
+}
+
+.debug-entries {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.debug-entry {
+  padding: var(--space-1) 0;
+  word-break: break-all;
+}
+
+.debug-time { color: var(--text-muted); }
+.debug-warn { color: var(--gold-ink); }
+.debug-error { color: var(--danger-ink); }
+.debug-debug { color: var(--text-muted); }
+
+/* ── Wider screens (iPad, desktop) ────────────────────────── */
+@media (min-width: 600px) {
+  .library-shell-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .segmented-control {
+    min-width: 22rem;
+  }
+
+  .library-toolbar {
+    flex-direction: row-reverse;
+    align-items: flex-start;
+  }
+
+  .library-toolbar .search-box {
+    flex: 1;
+  }
+
+  .library-toolbar-actions {
+    flex: none;
+    grid-template-columns: auto auto;
+  }
+
+  .pdf-list,
+  .lookup-results {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reader-toolbar-secondary,
+  .reader-toolbar-secondary .font-size-controls {
+    display: flex;
+  }
+
+  .reader-toolbar-overflow {
+    display: none;
+  }
+
+  .download-dialog {
+    align-items: center;
+  }
+}
+
+/* ── Motion ───────────────────────────────────────────────── */
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sheetUp {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, -12px) scale(0.96); }
+  to { opacity: 1; transform: translateX(-50%); }
+}
+
+@keyframes float {
+  from { transform: translateY(0); }
+  to { transform: translateY(-4px); }
+}
+
+@keyframes twinkle {
+  from { opacity: 0.55; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes hop {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-8px); }
+}
+
+/* Reduce Motion: keep state changes, drop movement and loops. A 1ms
+   animation still fires animationend, which main.ts waits for. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .btn:active:not(:disabled),
+  .btn-small:active:not(:disabled),
+  .lookup-filter-chip:active,
+  .pdf-card:has(.pdf-card-info:active) {
+    transform: none;
+  }
+}

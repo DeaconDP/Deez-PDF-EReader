@@ -10,12 +10,14 @@ import {
   type PdfMeta,
   type PdfSort,
 } from '../lib/library';
-import { formatError } from '../lib/errors';
+import { friendlyError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { showLoading } from '../components/loading';
 import { brandLogoSrc } from '../lib/brand';
 import { sym } from '../lib/symbols';
 import { createLookupPanel } from './lookup';
+import { pageBuddy } from '../components/illustration';
+import { onCreditClick } from '../components/debug-panel';
 import type { LookupResult } from '../lib/lookup/types';
 
 export type LibraryTab = 'library' | 'find';
@@ -76,99 +78,123 @@ export function createLibraryView(
     <header class="library-shell-header">
       <div class="library-brand">
         <div class="brand-mark brand-mark-compact">
-          <img class="brand-logo" src="${brandLogoSrc}" width="28" height="28" alt="" aria-hidden="true" />
+          <img class="brand-logo" src="${brandLogoSrc}" width="32" height="32" alt="" aria-hidden="true" />
         </div>
-        <div class="library-brand-text">
-          <h1 class="logo logo-compact">Deez<span class="accent">PDF</span></h1>
-        </div>
+        <h1 class="logo logo-compact">Deez<span class="accent">PDF</span></h1>
       </div>
       <div class="segmented-control" role="tablist" aria-label="Library sections">
-        <button type="button" class="segmented-control-btn" role="tab" id="tab-library" aria-controls="panel-library" aria-selected="true" tabindex="0">My Library</button>
-        <button type="button" class="segmented-control-btn" role="tab" id="tab-find" aria-controls="panel-find" aria-selected="false" tabindex="-1">Find Online</button>
+        <button type="button" class="segmented-control-btn" role="tab" id="tab-library" aria-controls="panel-library" aria-selected="true" tabindex="0">
+          <span class="icon" aria-hidden="true">${sym.document}</span><span>My Library</span>
+        </button>
+        <button type="button" class="segmented-control-btn" role="tab" id="tab-find" aria-controls="panel-find" aria-selected="false" tabindex="-1">
+          <span class="icon" aria-hidden="true">${sym.lookup}</span><span>Find Online</span>
+        </button>
       </div>
     </header>
 
     <div class="library-panel" id="panel-library" role="tabpanel" aria-labelledby="tab-library">
-      <p class="feature-hint library-panel-intro">PDFs stay on this device and work offline.</p>
       <div class="library-toolbar">
-        <div class="search-box">
-          <span class="search-icon icon" aria-hidden="true">${sym.search}</span>
-          <input type="search" class="search-input" placeholder="Search by title…" aria-label="Search library" />
-        </div>
         <div class="library-toolbar-actions">
-          <label class="btn btn-primary">
+          <label class="btn btn-primary add-pdf-btn">
             <span class="icon" aria-hidden="true">${sym.add}</span>
             <span class="btn-label">Add PDF</span>
-            <input type="file" accept=".pdf" multiple hidden class="file-input" />
+            <input type="file" accept=".pdf,application/pdf" multiple class="file-input visually-hidden" id="library-file-input" aria-label="Add PDF" />
           </label>
-          <button type="button" class="btn btn-primary download-btn download-btn-inline">
-            <span class="icon" aria-hidden="true">${sym.download}</span>
-            <span class="btn-label">Download URL</span>
+          <button type="button" class="btn btn-secondary download-btn download-btn-inline">
+            <span class="icon" aria-hidden="true">${sym.link}</span>
+            <span class="btn-label">From a link</span>
           </button>
         </div>
-        <p class="feature-hint feature-hint--compact">Add files from your device, or download from a direct PDF link.</p>
+        <div class="search-box">
+          <span class="search-icon icon" aria-hidden="true">${sym.search}</span>
+          <input type="search" class="search-input" placeholder="Search your PDFs" aria-label="Search your PDFs" enterkeyhint="search" />
+        </div>
       </div>
 
       <div class="library-controls">
         <label class="control-label">
-          <span class="control-glyph icon icon-glyph" aria-hidden="true">${sym.filter}</span>
-          <span class="control-text">Filter</span>
-          <select class="filter-select" aria-label="Filter library">
-            <option value="all">All</option>
-            <option value="unread">Unread</option>
-            <option value="reading">In progress</option>
+          <span class="control-glyph icon" aria-hidden="true">${sym.filter}</span>
+          <span class="visually-hidden">Show</span>
+          <select class="filter-select" aria-label="Show">
+            <option value="all">All PDFs</option>
+            <option value="unread">Not started</option>
+            <option value="reading">Reading</option>
             <option value="finished">Finished</option>
           </select>
+          <span class="control-chevron icon" aria-hidden="true">${sym.chevronDown}</span>
         </label>
         <label class="control-label">
-          <span class="control-glyph icon icon-glyph" aria-hidden="true">${sym.sort}</span>
-          <span class="control-text">Sort</span>
-          <select class="sort-select" aria-label="Sort library">
+          <span class="control-glyph icon" aria-hidden="true">${sym.sort}</span>
+          <span class="visually-hidden">Sort by</span>
+          <select class="sort-select" aria-label="Sort by">
             <option value="lastOpened-desc">Recently opened</option>
-            <option value="dateAdded-desc">Date added (newest)</option>
-            <option value="dateAdded-asc">Date added (oldest)</option>
-            <option value="name-asc">Name (A–Z)</option>
-            <option value="name-desc">Name (Z–A)</option>
-            <option value="size-desc">Size (largest)</option>
-            <option value="size-asc">Size (smallest)</option>
+            <option value="dateAdded-desc">Newest added</option>
+            <option value="dateAdded-asc">Oldest added</option>
+            <option value="name-asc">Name A–Z</option>
+            <option value="name-desc">Name Z–A</option>
+            <option value="size-desc">Largest</option>
+            <option value="size-asc">Smallest</option>
           </select>
+          <span class="control-chevron icon" aria-hidden="true">${sym.chevronDown}</span>
         </label>
         <span class="library-count" aria-live="polite"></span>
       </div>
-      <p class="feature-hint feature-hint--compact">Unread = not opened yet · In progress = partly read · Finished = last page reached.</p>
 
       <div class="content-scroll library-content">
-        <div class="pdf-list"></div>
+        <div class="pdf-list" role="list" aria-label="Your PDFs"></div>
         <div class="empty-state hidden">
-          <div class="empty-icon icon icon-glyph" aria-hidden="true">${sym.empty}</div>
-          <p class="empty-message">No PDFs in your library yet</p>
-          <p class="empty-hint">Add a PDF to get started</p>
+          <div class="empty-illustration" aria-hidden="true"></div>
+          <p class="empty-message">Your shelf is empty</p>
+          <p class="empty-hint">Add a PDF from your phone, or find a free classic online.</p>
+          <div class="empty-actions">
+            <label for="library-file-input" class="btn btn-primary empty-add-btn" role="button" tabindex="0">
+              <span class="icon" aria-hidden="true">${sym.add}</span>
+              <span class="btn-label">Add a PDF</span>
+            </label>
+            <button type="button" class="btn btn-secondary empty-find-btn">
+              <span class="icon" aria-hidden="true">${sym.lookup}</span>
+              <span class="btn-label">Find a free book</span>
+            </button>
+            <button type="button" class="btn btn-secondary empty-clear-btn hidden">
+              <span class="icon" aria-hidden="true">${sym.refresh}</span>
+              <span class="btn-label">Show everything</span>
+            </button>
+          </div>
         </div>
+        <footer class="app-footer">
+          <p class="privacy-note"><span class="icon" aria-hidden="true">${sym.sparkle}</span>Your PDFs stay on this device. Nothing is uploaded.</p>
+          <p class="credit">
+            Made by
+            <a href="https://deac.online" target="_blank" rel="noopener" class="credit-link">deac.online</a>
+            at
+            <a href="https://worldbuild.io" target="_blank" rel="noopener" class="credit-link">worldbuild.io</a>
+          </p>
+        </footer>
       </div>
     </div>
 
     <div class="library-panel hidden" id="panel-find" role="tabpanel" aria-labelledby="tab-find" hidden></div>
 
-    <div class="toast hidden"></div>
-    <div class="download-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="download-dialog-title">
+    <div class="toast hidden" role="status" aria-live="polite"></div>
+    <div class="download-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="download-dialog-title" aria-describedby="download-dialog-hint">
       <div class="download-dialog-panel">
         <div class="download-dialog-header">
-          <h2 id="download-dialog-title" class="download-dialog-title">Download PDF</h2>
-          <button class="btn-icon download-close-btn" aria-label="Close download dialog" title="Close">
+          <h2 id="download-dialog-title" class="download-dialog-title">Add from a link</h2>
+          <button type="button" class="btn-icon download-close-btn" aria-label="Close">
             <span class="icon" aria-hidden="true">${sym.close}</span>
           </button>
         </div>
-        <p class="download-dialog-hint">Paste a direct link that ends in .pdf — not a webpage.</p>
+        <p class="download-dialog-hint" id="download-dialog-hint">Paste a link that goes straight to a PDF (it usually ends in .pdf).</p>
         <label class="download-url-label">
-          <span class="control-text">PDF URL</span>
-          <input type="url" class="download-url-input" placeholder="https://example.com/document.pdf" autocomplete="url" inputmode="url" />
+          <span class="control-text">PDF link</span>
+          <input type="url" class="download-url-input" placeholder="https://example.com/book.pdf" autocomplete="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" />
         </label>
         <p class="download-save-hint hidden"></p>
         <div class="download-dialog-actions">
           <button type="button" class="btn btn-ghost download-cancel-btn">Cancel</button>
           <button type="button" class="btn btn-primary download-submit-btn">
-            <span class="icon" aria-hidden="true">${sym.download}</span>
-            Download
+            <span class="icon" aria-hidden="true">${sym.add}</span>
+            <span class="btn-label">Add PDF</span>
           </button>
         </div>
       </div>
@@ -196,6 +222,14 @@ export function createLibraryView(
   const emptyMessage = view.querySelector('.empty-message') as HTMLElement;
   const emptyHint = view.querySelector('.empty-hint') as HTMLElement;
   const toast = view.querySelector('.toast') as HTMLElement;
+  const emptyIllustration = view.querySelector('.empty-illustration') as HTMLElement;
+  const emptyAddBtn = view.querySelector('.empty-add-btn') as HTMLElement;
+  const emptyFindBtn = view.querySelector('.empty-find-btn') as HTMLButtonElement;
+  const emptyClearBtn = view.querySelector('.empty-clear-btn') as HTMLButtonElement;
+
+  view.querySelectorAll('.credit-link').forEach((link) => {
+    link.addEventListener('click', () => onCreditClick());
+  });
 
   const prefs = loadPrefs();
   filterSelect.value = prefs.filter;
@@ -215,14 +249,17 @@ export function createLibraryView(
   );
   panelFind.appendChild(lookupPanel);
 
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
   function showToast(message: string, isError = false) {
+    clearTimeout(toastTimer);
     toast.textContent = message;
     toast.className = `toast ${isError ? 'toast-error' : 'toast-info'}`;
+    toast.setAttribute('role', isError ? 'alert' : 'status');
     toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 4000);
+    toastTimer = setTimeout(() => toast.classList.add('hidden'), isError ? 6000 : 4000);
   }
 
-  function setTab(tab: LibraryTab) {
+  function setTab(tab: LibraryTab, focusSearch = false) {
     activeTab = tab;
     saveTab(tab);
 
@@ -237,7 +274,10 @@ export function createLibraryView(
     panelFind.hidden = isLibrary;
     panelLibrary.hidden = !isLibrary;
 
-    if (!isLibrary) {
+    // Only jump into the search field with a keyboard/mouse; on touch it would
+    // pop the on-screen keyboard over the welcome state.
+    const coarsePointer = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    if (!isLibrary && focusSearch && !coarsePointer) {
       lookupPanel.querySelector<HTMLInputElement>('.lookup-query-input')?.focus();
     }
   }
@@ -268,59 +308,64 @@ export function createLibraryView(
   const tabs = [tabLibrary, tabFind];
   tabs.forEach((tab, index) => {
     tab.addEventListener('click', () => {
-      setTab(tab.id === 'tab-find' ? 'find' : 'library');
+      setTab(tab.id === 'tab-find' ? 'find' : 'library', true);
     });
     tab.addEventListener('keydown', (e) => handleTabKeydown(e, tabs, index));
   });
 
   setTab(activeTab);
 
+  let dialogReturnFocus: HTMLElement | null = null;
+
   function openDownloadDialog() {
+    dialogReturnFocus = document.activeElement as HTMLElement | null;
     downloadUrlInput.value = '';
     downloadSaveHint.classList.add('hidden');
     if (supportsSaveFilePicker()) {
-      downloadSaveHint.textContent = 'You will choose where to save the file before it is added to your library.';
-      downloadSaveHint.classList.remove('hidden');
-    } else {
-      downloadSaveHint.textContent = 'Save location picker is unavailable here. The PDF will be added to your library only.';
+      downloadSaveHint.textContent = 'You’ll pick where to save a copy first, then it joins your library.';
       downloadSaveHint.classList.remove('hidden');
     }
     downloadDialog.classList.remove('hidden');
+    panelLibrary.setAttribute('aria-hidden', 'true');
     downloadUrlInput.focus();
   }
 
   function closeDownloadDialog() {
     downloadDialog.classList.add('hidden');
+    panelLibrary.removeAttribute('aria-hidden');
+    dialogReturnFocus?.focus?.();
+    dialogReturnFocus = null;
   }
 
   async function submitDownload() {
     const url = downloadUrlInput.value.trim();
     if (!url) {
-      showToast('Enter a PDF URL', true);
+      showToast('Paste a PDF link first.', true);
       downloadUrlInput.focus();
       return;
     }
 
     closeDownloadDialog();
-    const hideLoading = showLoading(view, 'Downloading PDF...');
+    const hideLoading = showLoading(view, 'Fetching your PDF…');
     try {
       const { meta, savedToDisk } = await downloadAndAddPdf(url);
       await refresh();
       if (savedToDisk) {
-        showToast(`Saved and added "${meta.name}"`);
+        showToast(`Saved and added “${meta.name}”`);
       } else {
-        showToast(`Added "${meta.name}" to library`);
+        showToast(`Added “${meta.name}” to your library`);
       }
     } catch (err) {
-      showToast(formatError(err), true);
+      showToast(friendlyError(err), true);
       logger.logError('Failed to download PDF', err);
     } finally {
       hideLoading();
     }
   }
 
-  function renderList(items: PdfMeta[]) {
+  function renderList(items: PdfMeta[], animate = false) {
     pdfList.innerHTML = '';
+    pdfList.classList.toggle('pdf-list--animate', animate);
 
     const hasQuery = searchInput.value.trim().length > 0;
     const hasFilter = filterSelect.value !== 'all';
@@ -330,52 +375,82 @@ export function createLibraryView(
       pdfList.classList.add('hidden');
       libraryCount.textContent = '';
 
-      if (pdfs.length === 0) {
-        emptyMessage.textContent = 'No PDFs in your library yet';
-        emptyHint.textContent = 'Add a PDF to get started';
-        emptyHint.classList.remove('hidden');
+      const libraryEmpty = pdfs.length === 0;
+      panelLibrary.classList.toggle('library-panel--empty', libraryEmpty);
+      emptyIllustration.innerHTML = pageBuddy(libraryEmpty ? 'happy' : 'curious', 128);
+      emptyAddBtn.classList.toggle('hidden', !libraryEmpty);
+      emptyFindBtn.classList.toggle('hidden', !libraryEmpty);
+      emptyClearBtn.classList.toggle('hidden', libraryEmpty);
+      if (libraryEmpty) {
+        emptyMessage.textContent = 'Your shelf is empty';
+        emptyHint.textContent = 'Add a PDF from your phone, or find a free classic online.';
+      } else if (hasQuery && !hasFilter) {
+        emptyMessage.textContent = 'No titles match that';
+        emptyHint.textContent = 'Check the spelling, or try a shorter word.';
       } else {
-        emptyMessage.textContent = 'No PDFs match your filters';
-        emptyHint.classList.add('hidden');
+        emptyMessage.textContent = 'Nothing here right now';
+        emptyHint.textContent = 'No PDFs match your search and filter.';
       }
+      emptyHint.classList.remove('hidden');
       return;
     }
 
     emptyState.classList.add('hidden');
     pdfList.classList.remove('hidden');
+    panelLibrary.classList.remove('library-panel--empty');
 
     const countLabel =
       hasQuery || hasFilter ? `${items.length} of ${pdfs.length}` : `${items.length}`;
-    libraryCount.textContent = `${countLabel} PDF${items.length === 1 ? '' : 's'}`;
+    libraryCount.textContent = `${countLabel} PDF${pdfs.length === 1 ? '' : 's'}`;
 
     items.forEach((pdf, index) => {
       const card = document.createElement('div');
-      card.className = `pdf-card${pdf.lastOpened === 0 ? ' pdf-card-unread' : ''}`;
-      card.style.setProperty('--stagger', String(index));
+      const unread = pdf.lastOpened === 0;
+      const finished = pdf.totalPages > 0 && pdf.currentPage >= pdf.totalPages;
+      const percent = pdf.totalPages > 0 ? Math.round((pdf.currentPage / pdf.totalPages) * 100) : 0;
+      const name = escapeHtml(pdf.name);
+      let status = '';
+      if (unread) {
+        status = `<span class="pdf-badge pdf-badge-new">New</span>`;
+      } else if (finished) {
+        status = `<span class="pdf-badge pdf-badge-done"><span class="icon" aria-hidden="true">${sym.check}</span>Finished</span>`;
+      } else if (pdf.totalPages > 0) {
+        status = `<span class="pdf-progress-text">Page ${pdf.currentPage} of ${pdf.totalPages}</span>`;
+      }
+
+      card.className = `pdf-card${unread ? ' pdf-card-unread' : ''}`;
+      card.setAttribute('role', 'listitem');
+      card.style.setProperty('--stagger', String(Math.min(index, 8)));
       card.innerHTML = `
-        <div class="pdf-card-info" data-id="${pdf.id}">
-          <span class="pdf-card-icon icon icon-glyph" aria-hidden="true">${sym.document}</span>
+        <div class="pdf-card-info" data-id="${pdf.id}" role="button" tabindex="0" aria-label="Open ${name}">
+          <span class="pdf-card-icon" aria-hidden="true">${sym.document}</span>
           <div class="pdf-card-text">
-            <span class="pdf-name">${escapeHtml(pdf.name)}</span>
-            <span class="pdf-meta">
-              ${formatBytes(pdf.size)}
-              ${pdf.totalPages > 0 ? ` · ${pdf.currentPage}/${pdf.totalPages}` : ''}
-            </span>
+            <span class="pdf-name">${name}</span>
+            <span class="pdf-meta">${status}<span class="pdf-size">${formatBytes(pdf.size)}</span></span>
+            ${!unread && pdf.totalPages > 0 && !finished ? `<span class="pdf-progress" aria-hidden="true"><span class="pdf-progress-fill" style="width:${percent}%"></span></span>` : ''}
           </div>
         </div>
         <div class="pdf-card-actions">
-          <button class="btn-icon rename-btn" data-id="${pdf.id}" aria-label="Rename ${escapeHtml(pdf.name)}" title="Rename">
+          <button type="button" class="btn-icon rename-btn" data-id="${pdf.id}" aria-label="Rename ${name}">
             <span class="icon" aria-hidden="true">${sym.edit}</span>
           </button>
-          <button class="btn-icon remove-btn" data-id="${pdf.id}" aria-label="Remove ${escapeHtml(pdf.name)}" title="Remove">
+          <button type="button" class="btn-icon btn-icon-danger remove-btn" data-id="${pdf.id}" aria-label="Remove ${name}">
             <span class="icon" aria-hidden="true">${sym.remove}</span>
           </button>
         </div>
       `;
 
-      card.querySelector('.pdf-card-info')?.addEventListener('click', () => {
+      const info = card.querySelector('.pdf-card-info') as HTMLElement;
+      info.addEventListener('click', () => {
         if (card.querySelector('.pdf-name-input')) return;
         callbacks.onOpenPdf(pdf.id);
+      });
+      info.addEventListener('keydown', (e) => {
+        if (e.target !== info) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          callbacks.onOpenPdf(pdf.id);
+        }
       });
 
       card.querySelector('.rename-btn')?.addEventListener('click', (e) => {
@@ -385,9 +460,10 @@ export function createLibraryView(
 
       card.querySelector('.remove-btn')?.addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (confirm(`Remove "${pdf.name}" from library?`)) {
+        if (confirm(`Remove “${pdf.name}”? This deletes the copy saved on this device.`)) {
           await removePdf(pdf.id);
           await refresh();
+          showToast(`Removed “${pdf.name}”`);
         }
       });
 
@@ -421,17 +497,17 @@ export function createLibraryView(
         const nextName = input.value.trim();
         if (!nextName) {
           span.textContent = pdf.name;
-          showToast('Name cannot be empty', true);
+          showToast('Give it a name first.', true);
         } else if (nextName !== pdf.name) {
           try {
             await renamePdf(pdf.id, nextName);
             span.textContent = nextName;
-            showToast('PDF renamed');
+            showToast('Renamed');
             await refresh();
             return;
           } catch (err) {
             span.textContent = pdf.name;
-            showToast(formatError(err), true);
+            showToast(friendlyError(err), true);
             logger.logError('Failed to rename PDF', err);
           }
         } else {
@@ -462,7 +538,7 @@ export function createLibraryView(
     });
   }
 
-  async function applyQuery() {
+  async function applyQuery(animate = false) {
     const filter = filterSelect.value as PdfFilter;
     const sort = sortSelect.value as PdfSort;
     savePrefs({ filter, sort });
@@ -472,12 +548,12 @@ export function createLibraryView(
       filter,
       sort,
     });
-    renderList(items);
+    renderList(items, animate);
   }
 
-  async function refresh() {
+  async function refresh(animate = false) {
     pdfs = await getAllPdfs();
-    await applyQuery();
+    await applyQuery(animate);
   }
 
   searchInput.addEventListener('input', () => applyQuery());
@@ -486,13 +562,17 @@ export function createLibraryView(
 
   fileInput.addEventListener('change', async () => {
     if (!fileInput.files?.length) return;
-    const hideLoading = showLoading(view, 'Adding PDFs...');
+    const hideLoading = showLoading(view, 'Adding to your shelf…');
     try {
-      await addPdfFiles(fileInput.files);
+      const added = await addPdfFiles(fileInput.files);
       await refresh();
-      showToast(`Added ${fileInput.files.length} file(s)`);
+      if (added.length === 0) {
+        showToast('That wasn’t a PDF. Pick a file that ends in .pdf.', true);
+      } else {
+        showToast(added.length === 1 ? `Added “${added[0].name}”` : `Added ${added.length} PDFs`);
+      }
     } catch (err) {
-      showToast(formatError(err), true);
+      showToast(friendlyError(err), true);
       logger.logError('Failed to add PDFs', err);
     } finally {
       hideLoading();
@@ -517,8 +597,27 @@ export function createLibraryView(
   downloadDialog.addEventListener('click', (e) => {
     if (e.target === downloadDialog) closeDownloadDialog();
   });
+  downloadDialog.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeDownloadDialog();
+    }
+  });
 
-  refresh();
+  emptyFindBtn.addEventListener('click', () => setTab('find', true));
+  emptyAddBtn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+  emptyClearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    filterSelect.value = 'all';
+    void applyQuery();
+  });
+
+  refresh(true);
   return view;
 }
 
