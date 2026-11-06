@@ -1,6 +1,6 @@
 import { getPdfBlob, getPdfMeta, updateProgress } from '../lib/library';
 import { PdfRenderer, setupSwipe, setupZoomGestures } from '../lib/pdf-renderer';
-import { ErrorCodes, errorCodeOf, friendlyError } from '../lib/errors';
+import { ErrorCodes, errorCodeOf, escapeHtml, friendlyError } from '../lib/errors';
 import { pageBuddy } from '../components/illustration';
 import { logger } from '../lib/logger';
 import { loadReaderPrefs, saveReaderPrefs, type TextTheme } from '../lib/reader-prefs';
@@ -42,7 +42,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
       <div class="reader-toolbar">
         ${
           isPreview
-            ? `<button class="btn btn-primary btn-small reader-add-btn" type="button">
+            ? `<button class="btn btn-primary btn-small reader-add-btn" type="button" aria-label="Add to library">
             <span class="icon" aria-hidden="true">${sym.add}</span>
             <span class="btn-label">Add</span>
           </button>`
@@ -200,8 +200,12 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
     pageIndicator.textContent = `${page} / ${total}`;
     pageIndicator.setAttribute('aria-label', `Page ${page} of ${total}`);
     canvas.setAttribute('aria-label', `Page ${page} of ${total}. Turn on Text mode in Reading options to have it read aloud.`);
+    const focused = document.activeElement;
     prevBtn.disabled = page <= 1;
     nextBtn.disabled = total > 0 && page >= total;
+    // Don't drop keyboard/VoiceOver focus to <body> when a button disables itself.
+    if (focused === nextBtn && nextBtn.disabled && !prevBtn.disabled) prevBtn.focus();
+    if (focused === prevBtn && prevBtn.disabled && !nextBtn.disabled) nextBtn.focus();
     if (total > 0) {
       progressFill.style.width = `${(page / total) * 100}%`;
       progressBar.setAttribute('aria-valuenow', String(page));
@@ -238,6 +242,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
     addLibraryBtn.disabled = true;
     addLibraryBtn.setAttribute('aria-busy', 'true');
     if (label) label.textContent = 'Adding…';
+    addLibraryBtn.setAttribute('aria-label', 'Adding to library');
     try {
       await callbacks.onAddToLibrary();
     } catch (err) {
@@ -246,6 +251,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
       addLibraryBtn.disabled = false;
       addLibraryBtn.removeAttribute('aria-busy');
       if (label) label.textContent = 'Add';
+      addLibraryBtn.setAttribute('aria-label', 'Add to library');
     }
   });
 
@@ -369,6 +375,8 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
   );
 
   const onKeydown = (e: KeyboardEvent) => {
+    const menuOpen = !readerOverflowMenu.classList.contains('hidden');
+    if (menuOpen && e.key !== 'Escape') return;
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
       renderer.nextPage();
@@ -505,8 +513,3 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
   return { view, load };
 }
 
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}

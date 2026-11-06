@@ -1,6 +1,7 @@
 /*
- * DeezPDF components. Uses tokens from tokens.css only: no raw colours,
- * radii or durations here. Classes toggled by JS (.hidden, .active,
+ * DeezPDF components. Colours, radii, sizes and durations come from
+ * tokens.css. Only accessibility utilities (visually-hidden, outline offsets),
+ * keyframe offsets, SVG coordinates and the one breakpoint are literal. Classes toggled by JS (.hidden, .active,
  * .rendered, .zoomed, .text-mode, .text-theme-*, .reader-active,
  * .view-enter, .pdf-card-unread, .toast-*) keep their meaning.
  */
@@ -71,7 +72,7 @@ button {
 }
 
 :focus-visible {
-  outline: 3px solid var(--primary);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -212,7 +213,7 @@ button {
 
 /* File input lives inside its label: show the label's focus ring */
 .add-pdf-btn:focus-within {
-  outline: 3px solid var(--primary);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -276,7 +277,7 @@ button {
 .download-url-input,
 .pdf-name-input {
   width: 100%;
-  min-height: 48px;
+  min-height: var(--input-h);
   padding: var(--space-4) var(--space-7);
   border: var(--border-w) solid var(--border-strong);
   border-radius: var(--radius);
@@ -307,7 +308,7 @@ button {
 .download-url-input:focus,
 .pdf-name-input:focus {
   outline: none;
-  border-color: var(--primary);
+  border-color: var(--focus-ring);
   box-shadow: 0 0 0 4px var(--primary-tint);
 }
 
@@ -330,7 +331,8 @@ button {
   display: block;
   width: 2rem;
   height: 2rem;
-  border-radius: 9px;
+  border-radius: var(--radius-logo);
+  box-shadow: 0 0 0 var(--border-w) var(--logo-ring);
 }
 
 .logo {
@@ -378,7 +380,7 @@ button {
 }
 
 .segmented-control-btn[aria-selected='true'] {
-  border-color: var(--primary);
+  border-color: var(--selected-edge);
   background: var(--primary-tint);
   color: var(--primary-ink);
 }
@@ -455,7 +457,7 @@ button {
   pointer-events: none;
 }
 
-.library-panel--empty .library-toolbar .search-box,
+.library-panel--empty .library-toolbar,
 .library-panel--empty .library-controls {
   display: none;
 }
@@ -499,7 +501,7 @@ button {
 .pdf-list--animate .pdf-card,
 .lookup-results .lookup-card {
   animation: popIn var(--dur-bouncy) var(--ease-bouncy) both;
-  animation-delay: calc(var(--stagger, 0) * 40ms);
+  animation-delay: calc(var(--stagger, 0) * var(--stagger-step));
 }
 
 .pdf-card-info {
@@ -607,7 +609,7 @@ button {
 }
 
 .pdf-progress {
-  height: 8px;
+  height: var(--progress-h);
   margin-top: var(--space-2);
 }
 
@@ -630,7 +632,7 @@ button {
   right: 6px;
   height: 26%;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.32);
+  background: var(--highlight);
 }
 
 .pdf-card-actions {
@@ -713,19 +715,19 @@ button {
 }
 
 .illo-float {
-  animation: float 3.2s var(--ease-gentle) infinite alternate;
+  animation: float var(--dur-float) var(--ease-gentle) infinite alternate;
   transform-origin: 60px 62px;
 }
 
 .illo-star,
 .illo-star-2 {
-  animation: twinkle 2.4s ease-in-out infinite alternate;
+  animation: twinkle var(--dur-twinkle) ease-in-out infinite alternate;
   transform-box: fill-box;
   transform-origin: center;
 }
 
 .illo-star-2 {
-  animation-delay: -1.2s;
+  animation-delay: calc(var(--dur-twinkle) / -2);
 }
 
 /* ── Footer (in the scroll flow, never covering content) ───── */
@@ -878,20 +880,14 @@ button {
 }
 
 .lookup-search-btn {
-  min-height: 48px;
+  min-height: var(--input-h);
 }
 
 .lookup-filters {
   display: flex;
-  gap: var(--space-4);
-  margin: 0 calc(-1 * var(--page-pad));
-  padding: var(--space-6) var(--page-pad) var(--space-3);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.lookup-filters::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-6) 0 var(--space-3);
 }
 
 .lookup-filter-chip {
@@ -918,7 +914,7 @@ button {
 }
 
 .lookup-filter-chip.active {
-  border-color: var(--primary);
+  border-color: var(--selected-edge);
   background: var(--primary-tint);
   box-shadow: 0 var(--lip-sm) 0 var(--primary-lip);
   color: var(--primary-ink);
@@ -1028,6 +1024,7 @@ button {
 }
 
 .reader-header {
+  container-type: inline-size;
   position: relative;
   z-index: 10;
   flex: none;
@@ -1048,6 +1045,19 @@ button {
 
 .btn-back-label {
   font-size: var(--text-body);
+}
+
+/* Narrow header or large Dynamic Type (em follows the root text size):
+   keep the title readable by dropping the button words, keeping icons. */
+@container (max-width: 21em) {
+  .btn-back-label,
+  .reader-add-btn .btn-label {
+    display: none;
+  }
+
+  .btn-back {
+    padding-right: 0;
+  }
 }
 
 .reader-heading {
@@ -1122,7 +1132,7 @@ button {
   align-items: center;
   gap: var(--space-6);
   width: 100%;
-  min-height: 48px;
+  min-height: var(--input-h);
   padding: 0 var(--space-6);
   border: 0;
   border-radius: var(--radius-sm);
@@ -1152,7 +1162,7 @@ button {
 
 .reader-progress {
   flex: none;
-  height: 6px;
+  height: var(--progress-h-reader);
   border-radius: 0;
 }
 
@@ -1199,7 +1209,7 @@ button {
 .reader-canvas {
   max-width: 100%;
   max-height: 100%;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   box-shadow:
     0 0 0 var(--border-w) var(--border),
     0 var(--lip) 0 var(--border-w) var(--border-lip);
@@ -1236,13 +1246,13 @@ button {
 
 /* Reading surfaces: warm paper / soft night (contrast 15:1 both) */
 .reader-text-panel.text-theme-light {
-  background: #f5f2ea;
-  color: #1a1d24;
+  background: var(--reading-paper);
+  color: var(--reading-paper-ink);
 }
 
 .reader-text-panel.text-theme-dark {
-  background: #10181d;
-  color: #eceff3;
+  background: var(--reading-night);
+  color: var(--reading-night-ink);
 }
 
 .reader-view.text-mode .reader-canvas-container {
@@ -1384,21 +1394,21 @@ button {
 }
 
 .loading-dots span {
-  width: 14px;
-  height: 14px;
+  width: var(--dot-size);
+  height: var(--dot-size);
   border-radius: 50%;
   background: var(--primary);
-  animation: hop 900ms var(--ease-gentle) infinite;
+  animation: hop var(--dur-hop) var(--ease-gentle) infinite;
 }
 
 .loading-dots span:nth-child(2) {
   background: var(--pink);
-  animation-delay: 120ms;
+  animation-delay: var(--dur-press);
 }
 
 .loading-dots span:nth-child(3) {
   background: var(--gold);
-  animation-delay: 240ms;
+  animation-delay: calc(var(--dur-press) * 2);
 }
 
 .loading-text {

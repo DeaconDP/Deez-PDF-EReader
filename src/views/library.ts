@@ -10,7 +10,7 @@ import {
   type PdfMeta,
   type PdfSort,
 } from '../lib/library';
-import { friendlyError } from '../lib/errors';
+import { errorDetailOf, escapeHtml, friendlyError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { showLoading } from '../components/loading';
 import { brandLogoSrc } from '../lib/brand';
@@ -29,6 +29,8 @@ export type LibraryCallbacks = {
 
 export type LibraryOptions = {
   initialTab?: LibraryTab;
+  /** Message to show once the library appears (e.g. after adding from a preview). */
+  toast?: string;
 };
 
 const PREFS_KEY = 'deezpdf-library-prefs';
@@ -155,6 +157,10 @@ export function createLibraryView(
               <span class="icon" aria-hidden="true">${sym.lookup}</span>
               <span class="btn-label">Find a free book</span>
             </button>
+            <button type="button" class="btn btn-ghost empty-link-btn">
+              <span class="icon" aria-hidden="true">${sym.link}</span>
+              <span class="btn-label">Paste a link</span>
+            </button>
             <button type="button" class="btn btn-secondary empty-clear-btn hidden">
               <span class="icon" aria-hidden="true">${sym.refresh}</span>
               <span class="btn-label">Show everything</span>
@@ -226,6 +232,7 @@ export function createLibraryView(
   const emptyAddBtn = view.querySelector('.empty-add-btn') as HTMLElement;
   const emptyFindBtn = view.querySelector('.empty-find-btn') as HTMLButtonElement;
   const emptyClearBtn = view.querySelector('.empty-clear-btn') as HTMLButtonElement;
+  const emptyLinkBtn = view.querySelector('.empty-link-btn') as HTMLButtonElement;
 
   view.querySelectorAll('.credit-link').forEach((link) => {
     link.addEventListener('click', () => onCreditClick());
@@ -316,6 +323,7 @@ export function createLibraryView(
   setTab(activeTab);
 
   let dialogReturnFocus: HTMLElement | null = null;
+  const backgroundEls = [view.querySelector('.library-shell-header') as HTMLElement, panelLibrary, panelFind];
 
   function openDownloadDialog() {
     dialogReturnFocus = document.activeElement as HTMLElement | null;
@@ -326,13 +334,13 @@ export function createLibraryView(
       downloadSaveHint.classList.remove('hidden');
     }
     downloadDialog.classList.remove('hidden');
-    panelLibrary.setAttribute('aria-hidden', 'true');
+    backgroundEls.forEach((el) => el.setAttribute('inert', ''));
     downloadUrlInput.focus();
   }
 
   function closeDownloadDialog() {
     downloadDialog.classList.add('hidden');
-    panelLibrary.removeAttribute('aria-hidden');
+    backgroundEls.forEach((el) => el.removeAttribute('inert'));
     dialogReturnFocus?.focus?.();
     dialogReturnFocus = null;
   }
@@ -356,7 +364,8 @@ export function createLibraryView(
         showToast(`Added “${meta.name}” to your library`);
       }
     } catch (err) {
-      showToast(friendlyError(err), true);
+      const cancelled = errorDetailOf(err) === 'Save cancelled';
+      showToast(friendlyError(err), !cancelled);
       logger.logError('Failed to download PDF', err);
     } finally {
       hideLoading();
@@ -380,6 +389,7 @@ export function createLibraryView(
       emptyIllustration.innerHTML = pageBuddy(libraryEmpty ? 'happy' : 'curious', 128);
       emptyAddBtn.classList.toggle('hidden', !libraryEmpty);
       emptyFindBtn.classList.toggle('hidden', !libraryEmpty);
+      emptyLinkBtn.classList.toggle('hidden', !libraryEmpty);
       emptyClearBtn.classList.toggle('hidden', libraryEmpty);
       if (libraryEmpty) {
         emptyMessage.textContent = 'Your shelf is empty';
@@ -422,8 +432,9 @@ export function createLibraryView(
       card.setAttribute('role', 'listitem');
       card.style.setProperty('--stagger', String(Math.min(index, 8)));
       card.innerHTML = `
-        <div class="pdf-card-info" data-id="${pdf.id}" role="button" tabindex="0" aria-label="Open ${name}">
+        <div class="pdf-card-info" data-id="${pdf.id}" role="button" tabindex="0">
           <span class="pdf-card-icon" aria-hidden="true">${sym.document}</span>
+          <span class="visually-hidden">Open</span>
           <div class="pdf-card-text">
             <span class="pdf-name">${name}</span>
             <span class="pdf-meta">${status}<span class="pdf-size">${formatBytes(pdf.size)}</span></span>
@@ -473,7 +484,11 @@ export function createLibraryView(
 
   function startRename(card: HTMLElement, pdf: PdfMeta) {
     const nameEl = card.querySelector('.pdf-name') as HTMLElement | null;
-    if (!nameEl || card.querySelector('.pdf-name-input')) return;
+    const info = card.querySelector('.pdf-card-info') as HTMLElement | null;
+    if (!nameEl || !info || card.querySelector('.pdf-name-input')) return;
+    // A text field can't live inside role=button: drop the role while editing.
+    info.removeAttribute('role');
+    info.removeAttribute('tabindex');
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -518,6 +533,8 @@ export function createLibraryView(
       }
 
       input.replaceWith(span);
+      info?.setAttribute('role', 'button');
+      info?.setAttribute('tabindex', '0');
     }
 
     input.addEventListener('keydown', (e) => {
@@ -605,6 +622,7 @@ export function createLibraryView(
   });
 
   emptyFindBtn.addEventListener('click', () => setTab('find', true));
+  emptyLinkBtn.addEventListener('click', () => openDownloadDialog());
   emptyAddBtn.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -618,6 +636,7 @@ export function createLibraryView(
   });
 
   refresh(true);
+  if (options?.toast) showToast(options.toast);
   return view;
 }
 
@@ -627,8 +646,3 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}

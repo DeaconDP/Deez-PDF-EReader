@@ -1,6 +1,6 @@
 import { addLookupResultToLibrary } from '../lib/library';
 import { fetchPdfFromUrl } from '../lib/download';
-import { AppError, ErrorCodes, errorCodeOf, friendlyError } from '../lib/errors';
+import { AppError, ErrorCodes, errorCodeOf, errorDetailOf, escapeHtml, friendlyError } from '../lib/errors';
 import { pageBuddy } from '../components/illustration';
 import { searchLookupPdfs, type LookupResult, type LookupSource } from '../lib/lookup/search';
 import { cachePreviewBlob } from '../lib/lookup/preview-cache';
@@ -316,13 +316,7 @@ type SavedSearch = {
 let savedSearch: SavedSearch = { query: '', results: [], filter: 'all', addedIds: new Set(), notice: '' };
 
 function downloadErrorMessage(err: unknown): string {
-  return errorCodeOf(err) === ErrorCodes.LIB_003
-    ? 'This one isn’t free to download. Try another result.'
-    : friendlyError(err);
+  const restricted = errorCodeOf(err) === ErrorCodes.LIB_003 && /^HTTP 40[13]\b/.test(errorDetailOf(err));
+  return restricted ? 'This one isn’t free to download. Try another result.' : friendlyError(err);
 }
 
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}

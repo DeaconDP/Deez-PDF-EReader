@@ -77,11 +77,34 @@ const friendlyMessages: Record<ErrorCode, string> = {
 const friendlyDetails: Record<string, string> = {
   'name cannot be empty': 'Give it a name first.',
   'Save cancelled': 'Download cancelled.',
+  'URL is required': 'Paste a PDF link first.',
+  'Invalid URL': 'That doesn’t look like a web link. It should start with https://',
+  'Only http and https URLs are supported': 'That doesn’t look like a web link. It should start with https://',
 };
+
+/** The technical detail after the base message, e.g. "HTTP 401" for ERR-LIB-003. */
+export function errorDetailOf(err: unknown): string {
+  if (!(err instanceof AppError)) return '';
+  return err.message.slice(messages[err.code].length).replace(/^:\s*/, '');
+}
+
+function friendlyDownloadError(detail: string): string | undefined {
+  const status = /^HTTP (\d{3})/.exec(detail)?.[1];
+  if (status === '401' || status === '403') return 'That file is private or needs a login, so it can’t be downloaded.';
+  if (status === '404') return 'Nothing is at that link any more. Check it and try again.';
+  if (status) return `That site said no (error ${status}). Try again later.`;
+  if (/not a (valid )?PDF/i.test(detail)) return friendlyMessages['ERR-LIB-003'];
+  if (friendlyDetails[detail]) return undefined;
+  return 'We couldn’t reach that link. Check your connection and try again.';
+}
 
 export function friendlyError(err: unknown): string {
   if (err instanceof AppError) {
-    const detail = err.message.slice(messages[err.code].length).replace(/^:\s*/, '');
+    const detail = errorDetailOf(err);
+    if (err.code === 'ERR-LIB-003') {
+      const download = friendlyDownloadError(detail);
+      if (download) return download;
+    }
     return friendlyDetails[detail] ?? friendlyMessages[err.code];
   }
   return 'Something went wrong. Please try again.';
@@ -89,4 +112,14 @@ export function friendlyError(err: unknown): string {
 
 export function errorCodeOf(err: unknown): ErrorCode | undefined {
   return err instanceof AppError ? err.code : undefined;
+}
+
+/** Escape text for HTML content *and* quoted attribute values. */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

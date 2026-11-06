@@ -1,5 +1,6 @@
 import { getLibraryStats } from '../lib/library';
 import { logger } from '../lib/logger';
+import { escapeHtml } from '../lib/errors';
 import { sym } from '../lib/symbols';
 
 let visible = false;
@@ -49,11 +50,6 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
 
 export function initDebugPanel(container: HTMLElement): void {
   panelEl = document.createElement('div');

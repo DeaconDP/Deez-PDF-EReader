@@ -83,7 +83,19 @@ Every value lives in [`src/styles/tokens.css`](../../src/styles/tokens.css).
 8. **Touch targets:** chips, the preview Add button, the rename field, the debug close button and the footer links were all under 44 pt. All are now at least 44 pt.
 9. **Light mode:** the app now follows the system appearance. The status bar, theme-color and PWA manifest follow it too.
 10. **Less clutter:** seven explanatory lines above the content have become one line per tab. The footer is no longer fixed over the last card; it scrolls with the content.
-11. **The keyboard no longer hides things.**
+11. **Fresh-eyes review fixes.**
+    - Titles containing quotes broke `aria-label`s and could inject attributes. All three views and the debug panel now share one `escapeHtml` that also escapes quotes.
+    - Card names now include their status ("Open X, New, 16.6 KB"). The rename field is no longer nested inside a `role=button`.
+    - The page behind the link dialog is `inert`.
+    - The focus ring and selected tab/chip edges use `--focus-ring` / `--selected-edge`, which pass 3:1 (sky alone was only 2.4:1).
+    - Download errors say why they failed (private, gone, offline, not a PDF), and a save you cancelled isn't shown as an error.
+    - Arrow keys don't turn pages while the options menu is open. Focus doesn't drop to the page when Next or Previous disables itself.
+    - Adding from a preview shows a confirmation toast.
+    - At large text sizes the reader header shows icons only (container query), so the title stays readable.
+    - The source chips wrap instead of hiding "Web" off-screen.
+    - The logo has a ring in dark mode.
+    - When the shelf is empty, only the empty-state actions show.
+12. **The keyboard no longer hides things.**
     - The "Add from a link" sheet is anchored to the top on phones; at the bottom, the iOS keyboard covered its buttons.
     - The Find tab no longer pops the keyboard over its welcome state on touch devices.
 
@@ -114,7 +126,7 @@ so its "light" shots look the same as its dark ones.
 | Empty library | [before](before/library-empty-light.png) | [light](after/library-empty-light.png) | [dark](after/library-empty-dark.png) |
 | Add from a link | [before](before/download-dialog-dark.png) | [light](after/link-dialog-light.png) | [dark](after/link-dialog-dark.png) |
 | Reader | [before](before/reader-light.png) | [light](after/reader-light.png) | [dark](after/reader-dark.png) |
-| Reading options | [before](before/reader-menu-light.png) | [light](after/reader-menu-textmode-light.png) | [dark](after/reader-menu-textmode-dark.png) |
+| Reading options | [before](before/reader-menu-light.png) | [light (text mode on)](after/reader-menu-textmode-light.png) | [dark](after/reader-menu-dark.png) · [text mode on](after/reader-menu-textmode-dark.png) |
 | Text mode | (couldn't capture, see note) | [light](after/reader-textmode-light.png) | [dark](after/reader-textmode-dark.png) · [dark page](after/reader-textmode-darkpage-dark.png) |
 | Reader error | [before](before/reader-error-light.png) | [light](after/reader-error-light.png) | [dark](after/reader-error-dark.png) |
 | Find Online, start | [before](before/find-empty-dark.png) | [light](after/find-empty-light.png) | [dark](after/find-empty-dark.png) |
@@ -124,7 +136,7 @@ so its "light" shots look the same as its dark ones.
 | Filtered to nothing | — | [light](after/find-filtered-empty-light.png) | — |
 | Preview | — | [light](after/preview-light.png) | [dark](after/preview-dark.png) |
 | Toast, remove confirm | — | [toast](after/toast-added-light.png) · [confirm](after/remove-confirm-light.png) | — |
-| Large text (AX Large) | — | [library](after/library-largetext-light.png) · [reader](after/reader-largetext-light.png) | — |
+| Large text (AX Large) | — | [library](after/library-largetext-light.png) · [reader](after/reader-largetext-light.png) · [find](after/find-largetext-light.png) | — |
 
 Note: the "before" reader error is the reopen bug above. In the old build,
 opening any PDF a second time showed it, so text mode couldn't be captured.
@@ -136,4 +148,5 @@ opening any PDF a second time showed it, so text mode couldn't be captured.
 - **App Store screenshots** still show the old look. Update them when this ships.
 - Adding from a preview doesn't mark the result as "Added" in the results list. The library is correct.
 - The Capacitor packages are on 8.4. 8.5 adds `SceneDelegateProxy`, which would let `SceneDelegate` forward URL opens through Capacitor's own helper.
+- The viewport still sets `user-scalable=no`, because the reader has its own pinch-zoom. Text scales with Dynamic Type instead. Revisit this for the desktop/PWA build.
 - Haptics: the house style uses light haptics on press. That needs `@capacitor/haptics`, a new dependency, so it wasn't added.

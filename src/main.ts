@@ -29,7 +29,7 @@ function mount(view: HTMLElement) {
   app.insertBefore(view, app.querySelector('.app-footer') ?? null);
 }
 
-function showLibrary(options?: { tab?: LibraryTab }) {
+function showLibrary(options?: { tab?: LibraryTab; toast?: string }) {
   const library = createLibraryView(
     {
       onOpenPdf: (id) => {
@@ -39,7 +39,7 @@ function showLibrary(options?: { tab?: LibraryTab }) {
         void openPreviewReader(result, blob, () => showLibrary({ tab: 'find' }));
       },
     },
-    { initialTab: options?.tab },
+    { initialTab: options?.tab, toast: options?.toast },
   );
   mount(library);
 }
@@ -70,7 +70,7 @@ async function openPreviewReader(
       onAddToLibrary: async () => {
         const meta = await addLookupResultToLibrary(result);
         logger.info(`Added lookup preview to library: ${meta.name}`);
-        showLibrary({ tab: 'library' });
+        showLibrary({ tab: 'library', toast: `Added “${meta.name}” to your library` });
       },
     },
   );
