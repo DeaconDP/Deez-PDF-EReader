@@ -13,7 +13,6 @@ import {
   FILTER_OPTIONS,
   SORT_OPTIONS,
   effectiveLibraryPrefs,
-  isDefaultLibraryPrefs,
   isLibraryFilter,
   isLibrarySort,
   parseLibraryPrefs,
@@ -180,7 +179,7 @@ export function createLibraryView(
     </div>
 
     <input type="file" accept=".pdf,application/pdf" multiple class="file-input visually-hidden" id="library-file-input" tabindex="-1" aria-hidden="true" />
-    <div class="toast hidden" role="status" aria-live="polite"></div>
+    <div class="toast toast-idle"></div>
 
     <div class="sheet hidden" id="add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-sheet-title">
       <div class="sheet-panel">
@@ -279,10 +278,18 @@ export function createLibraryView(
     link.addEventListener('click', () => onCreditClick());
   });
 
+  // Saved choices. While "Sort & filter" is hidden, `shownPrefs` (the
+  // defaults) is what's applied; `prefs` stays saved for when it returns.
   let prefs = loadPrefs();
+  let shownPrefs: LibraryPrefs = prefs;
 
   let pdfs: PdfMeta[] = [];
   let activeTab: LibraryTab = options?.initialTab ?? loadTab();
+
+  // One toast for the whole view (both tabs), so messages replace or queue
+  // behind each other instead of overlapping.
+  const toaster = createToaster(view.querySelector(':scope > .toast') as HTMLElement);
+  const showToast = toaster.show;
 
   const lookupPanel = createLookupPanel(
     {
@@ -291,12 +298,10 @@ export function createLibraryView(
         void refresh();
       },
     },
-    { loadingRoot: view },
+    { loadingRoot: view, toaster },
   );
   panelFind.appendChild(lookupPanel);
 
-  const toaster = createToaster(view.querySelector(':scope > .toast') as HTMLElement);
-  const showToast = toaster.show;
   let tornDown = false;
 
   // ── Remove with Undo ──────────────────────────────────────
@@ -337,6 +342,8 @@ export function createLibraryView(
         onAction: () => void undoRemoval(id),
       },
       onPauseChange: (paused) => (paused ? removals.pause(id) : removals.resume(id)),
+      // Other messages wait behind this toast (see toast-queue.ts), so it is
+      // only replaced by another removal's Undo, which commits this one anyway.
       onDismiss: (reason) => {
         undoToasts.delete(id);
         if (reason !== 'action') void removals.commit(id);
@@ -414,9 +421,30 @@ export function createLibraryView(
     const { card, button, menu } = openMenu;
     openMenu = null;
     menu.hidden = true;
+    menu.classList.remove('pdf-card-menu--up');
     button.setAttribute('aria-expanded', 'false');
     card.classList.remove('pdf-card--menu-open');
+    libraryMain.classList.remove('library-main--menu-open');
     if (returnFocus) button.focus();
+  }
+
+  /**
+   * Open below the button, or upward when the menu would run past the visible
+   * part of the list (which ends at the tab bar) and there's more room above.
+   */
+  function placeMenu(menu: HTMLElement) {
+    menu.classList.remove('pdf-card-menu--up');
+    const area = panelLibrary.getBoundingClientRect();
+    const bottomLimit = Math.min(area.bottom, tabBar.getBoundingClientRect().top || Infinity, window.innerHeight);
+    const rect = menu.getBoundingClientRect();
+    if (rect.bottom <= bottomLimit) return;
+    const anchor = (menu.parentElement as HTMLElement).getBoundingClientRect();
+    const roomBelow = bottomLimit - anchor.bottom;
+    const roomAbove = anchor.top - Math.max(area.top, 0);
+    if (roomAbove > roomBelow) menu.classList.add('pdf-card-menu--up');
+    // Still clipped (tiny window, huge text): bring it into view.
+    const placed = menu.getBoundingClientRect();
+    if (placed.bottom > bottomLimit || placed.top < area.top) menu.scrollIntoView({ block: 'nearest' });
   }
 
   function openCardMenu(card: HTMLElement, button: HTMLButtonElement, menu: HTMLElement, focus: 'first' | 'last') {
@@ -425,6 +453,8 @@ export function createLibraryView(
     menu.hidden = false;
     button.setAttribute('aria-expanded', 'true');
     card.classList.add('pdf-card--menu-open');
+    libraryMain.classList.add('library-main--menu-open');
+    placeMenu(menu);
     const items = menuItems(menu);
     items[focus === 'first' ? 0 : items.length - 1]?.focus();
   }
@@ -630,6 +660,7 @@ export function createLibraryView(
   }
 
   function syncSortFilter() {
+    // The sheet shows the saved choices; it's only reachable when they apply.
     radioGroups.forEach((group) => {
       const current = group.dataset.pref === 'sort' ? prefs.sort : prefs.filter;
       radiosOf(group).forEach((radio) => {
@@ -638,8 +669,8 @@ export function createLibraryView(
         radio.tabIndex = on ? 0 : -1;
       });
     });
-    const filterLabel = FILTER_OPTIONS.find((o) => o.value === prefs.filter)?.label ?? '';
-    const filtered = prefs.filter !== DEFAULT_LIBRARY_PREFS.filter;
+    const filterLabel = FILTER_OPTIONS.find((o) => o.value === shownPrefs.filter)?.label ?? '';
+    const filtered = shownPrefs.filter !== DEFAULT_LIBRARY_PREFS.filter;
     sortFilterState.hidden = !filtered;
     sortFilterState.textContent = filtered ? filterLabel : '';
   }
@@ -650,6 +681,7 @@ export function createLibraryView(
     else if (group.dataset.pref === 'filter' && isLibraryFilter(value)) prefs = { ...prefs, filter: value };
     else return;
     savePrefs(prefs);
+    shownPrefs = prefs; // the control is showing, so the saved choice applies
     syncSortFilter();
     void applyQuery();
   }
@@ -759,7 +791,7 @@ export function createLibraryView(
     syncFab();
 
     const hasQuery = searchInput.value.trim().length > 0;
-    const hasFilter = prefs.filter !== DEFAULT_LIBRARY_PREFS.filter;
+    const hasFilter = shownPrefs.filter !== DEFAULT_LIBRARY_PREFS.filter;
 
     if (items.length === 0) {
       emptyState.classList.remove('hidden');
@@ -811,18 +843,19 @@ export function createLibraryView(
       }
 
       card.className = `pdf-card${unread ? ' pdf-card-unread' : ''}`;
+      // A bare listitem: no label of its own, so VoiceOver reaches the two
+      // buttons inside separately instead of one merged element.
       card.setAttribute('role', 'listitem');
       card.style.setProperty('--stagger', String(Math.min(index, 8)));
       card.innerHTML = `
-        <div class="pdf-card-info" data-id="${pdf.id}" role="button" tabindex="0">
+        <button type="button" class="pdf-card-info" data-id="${pdf.id}" aria-label="${escapeHtml(openLabel(pdf))}">
           <span class="pdf-card-icon" aria-hidden="true">${sym.document}</span>
-          <span class="visually-hidden">Open</span>
-          <div class="pdf-card-text">
+          <span class="pdf-card-text">
             <span class="pdf-name">${name}</span>
             <span class="pdf-meta">${status}<span class="pdf-size">${formatBytes(pdf.size)}</span></span>
             ${!unread && pdf.totalPages > 0 && !finished ? `<span class="pdf-progress" aria-hidden="true"><span class="pdf-progress-fill" style="width:${percent}%"></span></span>` : ''}
-          </div>
-        </div>
+          </span>
+        </button>
         <div class="pdf-card-actions">
           <button type="button" class="btn-icon pdf-more-btn" id="pdf-more-${menuId}" aria-haspopup="menu" aria-expanded="false" aria-controls="pdf-menu-${menuId}" aria-label="More options for ${name}">
             <span class="icon" aria-hidden="true">${sym.more}</span>
@@ -838,18 +871,9 @@ export function createLibraryView(
         </div>
       `;
 
-      const info = card.querySelector('.pdf-card-info') as HTMLElement;
-      info.addEventListener('click', () => {
-        if (card.querySelector('.pdf-name-input')) return;
-        callbacks.onOpenPdf(pdf.id);
-      });
-      info.addEventListener('keydown', (e) => {
-        if (e.target !== info) return;
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          callbacks.onOpenPdf(pdf.id);
-        }
-      });
+      // A real button: Enter/Space, VoiceOver and XCTest activation all click it.
+      const info = card.querySelector('.pdf-card-info') as HTMLButtonElement;
+      info.addEventListener('click', () => callbacks.onOpenPdf(pdf.id));
 
       setupCardMenu(card, pdf);
 
@@ -859,11 +883,14 @@ export function createLibraryView(
 
   function startRename(card: HTMLElement, pdf: PdfMeta) {
     const nameEl = card.querySelector('.pdf-name') as HTMLElement | null;
-    const info = card.querySelector('.pdf-card-info') as HTMLElement | null;
+    const info = card.querySelector('button.pdf-card-info') as HTMLButtonElement | null;
     if (!nameEl || !info || card.querySelector('.pdf-name-input')) return;
-    // A text field can't live inside role=button: drop the role while editing.
-    info.removeAttribute('role');
-    info.removeAttribute('tabindex');
+    // A text field can't live inside a button: while editing, swap the button
+    // for a plain container holding the same content, and put it back after.
+    const editing = document.createElement('div');
+    editing.className = 'pdf-card-info pdf-card-info--editing';
+    editing.append(...Array.from(info.childNodes));
+    info.replaceWith(editing);
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -909,9 +936,11 @@ export function createLibraryView(
       }
 
       input.replaceWith(span);
-      info?.setAttribute('role', 'button');
-      info?.setAttribute('tabindex', '0');
-      if (fromKeyboard) info?.focus();
+      if (info && editing.isConnected) {
+        info.append(...Array.from(editing.childNodes));
+        editing.replaceWith(info);
+        if (fromKeyboard) info.focus();
+      }
     }
 
     input.addEventListener('keydown', (e) => {
@@ -941,21 +970,19 @@ export function createLibraryView(
     const all = await getAllPdfs();
     if (seq !== renderSeq || tornDown) return;
 
-    // With six or fewer books "Sort & filter" is hidden, so go back to the
-    // defaults: a filter picked earlier mustn't quietly hide books.
+    // With six or fewer books "Sort & filter" is hidden, so show the
+    // defaults: a filter picked earlier mustn't quietly hide books. The saved
+    // choice is kept (not overwritten) so Undo or the next book brings it back.
     const effective = effectiveLibraryPrefs(prefs, removals.visible(all).length);
-    if (!isDefaultLibraryPrefs(prefs) && isDefaultLibraryPrefs(effective)) {
-      prefs = effective;
-      savePrefs(prefs);
-    }
 
     const items = await queryPdfs({
       query: searchInput.value,
-      filter: prefs.filter,
-      sort: prefs.sort,
+      filter: effective.filter,
+      sort: effective.sort,
     });
     if (seq !== renderSeq || tornDown) return;
     pdfs = all;
+    shownPrefs = effective;
     renderList(removals.visible(items), animate);
   }
 
@@ -1014,8 +1041,11 @@ export function createLibraryView(
   emptyFindBtn.addEventListener('click', () => setTab('find', true));
   emptyClearBtn.addEventListener('click', () => {
     searchInput.value = '';
-    prefs = { ...prefs, filter: DEFAULT_LIBRARY_PREFS.filter };
-    savePrefs(prefs);
+    // Only clear a filter that is actually hiding books right now.
+    if (shownPrefs.filter !== DEFAULT_LIBRARY_PREFS.filter) {
+      prefs = { ...prefs, filter: DEFAULT_LIBRARY_PREFS.filter };
+      savePrefs(prefs);
+    }
     void applyQuery();
   });
 
@@ -1035,6 +1065,17 @@ export function createLibraryView(
   });
   if (options?.toast) showToast(options.toast);
   return view;
+}
+
+/** VoiceOver name for a card's main button: "Open <name>, <status>, <size>". */
+function openLabel(pdf: PdfMeta): string {
+  const unread = pdf.lastOpened === 0;
+  const finished = pdf.totalPages > 0 && pdf.currentPage >= pdf.totalPages;
+  let status = '';
+  if (unread) status = 'New';
+  else if (finished) status = 'Finished';
+  else if (pdf.totalPages > 0) status = `Page ${pdf.currentPage} of ${pdf.totalPages}`;
+  return [`Open ${pdf.name}`, status, formatBytes(pdf.size)].filter(Boolean).join(', ');
 }
 
 function formatBytes(bytes: number): string {

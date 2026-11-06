@@ -71,6 +71,10 @@ export function showsSortFilter(shelfCount: number): boolean {
 /**
  * The prefs to actually apply. While the control is hidden, a filter or sort
  * picked earlier must not quietly hide or reorder books, so defaults apply.
+ *
+ * Render-only: never save the result. The saved choice must survive a dip to
+ * six or fewer books (e.g. a removal still offering Undo) and come back once
+ * the shelf grows again. `prefs` is never modified.
  */
 export function effectiveLibraryPrefs(prefs: LibraryPrefs, shelfCount: number): LibraryPrefs {
   return showsSortFilter(shelfCount) ? prefs : { ...DEFAULT_LIBRARY_PREFS };

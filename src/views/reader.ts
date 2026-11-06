@@ -129,7 +129,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
         </button>
       </div>
     </nav>
-    <div class="toast hidden" role="status" aria-live="polite"></div>
+    <div class="toast toast-idle"></div>
   `;
 
   const canvas = view.querySelector('.reader-canvas') as HTMLCanvasElement;

@@ -1,11 +1,20 @@
 /**
- * The one toast used by every view: a polite status message (`role=alert`
- * for errors) with an optional action button such as Undo.
+ * The one toast used by every view: a polite status message (an alert for
+ * errors) with an optional action button such as Undo.
  *
- * The timer pauses while the pointer is over the toast or focus is inside it
- * (WCAG 2.2.1), and restarts in full once it leaves. Showing a new message
- * replaces the current one and resets the timer.
+ * The timer pauses while focus is inside the toast, or the pointer is over it
+ * on devices that can hover (WCAG 2.2.1), and restarts in full once it leaves.
+ * Showing a new message replaces the current one and resets the timer, except
+ * that a toast with an action (Undo) is never cut short by a message without
+ * one: that message waits until the action toast ends (see toast-queue.ts).
+ *
+ * Announcements: the toast is never `display: none`. When idle it is only
+ * transparent, so its two live regions (one `role=status`, one `role=alert`)
+ * stay in the accessibility tree and a message is set into a region that is
+ * already there. Each region keeps its role; the empty one is visually hidden.
  */
+
+import { showsQueuedAfter, toastArrival } from '../lib/toast-queue';
 
 export const TOAST_DURATION_MS = 4000;
 
@@ -57,20 +66,33 @@ export type Toaster = {
  */
 export function createToaster(existing?: HTMLElement): Toaster {
   const element = existing ?? document.createElement('div');
-  element.className = 'toast hidden';
-  element.setAttribute('role', 'status');
-  element.setAttribute('aria-live', 'polite');
+  element.className = 'toast toast-idle';
+  // The live regions are the message nodes inside, not the toast itself.
+  element.removeAttribute('role');
+  element.removeAttribute('aria-live');
   element.replaceChildren();
 
-  const messageEl = document.createElement('span');
-  messageEl.className = 'toast-message';
+  const statusEl = document.createElement('span');
+  statusEl.className = 'toast-message';
+  statusEl.setAttribute('role', 'status');
+  statusEl.setAttribute('aria-live', 'polite');
+  statusEl.setAttribute('aria-atomic', 'true');
+  const alertEl = document.createElement('span');
+  alertEl.className = 'toast-message';
+  alertEl.setAttribute('role', 'alert');
+  alertEl.setAttribute('aria-live', 'assertive');
+  alertEl.setAttribute('aria-atomic', 'true');
   const actionBtn = document.createElement('button');
   actionBtn.type = 'button';
   actionBtn.className = 'toast-action';
   actionBtn.hidden = true;
-  element.append(messageEl, actionBtn);
+  element.append(statusEl, alertEl, actionBtn);
+
+  const canHover = typeof window.matchMedia === 'function' ? window.matchMedia('(hover: hover)') : null;
 
   let current: { token: number; options: ToastOptions } | null = null;
+  /** The newest message waiting for an action toast to end. */
+  let queued: { token: number; message: string; options: ToastOptions } | null = null;
   let nextToken = 1;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let hovered = false;
@@ -121,9 +143,16 @@ export function createToaster(existing?: HTMLElement): Toaster {
     }
     // Don't leave focus on a button that is about to disappear.
     if (element.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
-    element.classList.add('hidden');
+    element.classList.add('toast-idle');
     actionBtn.hidden = true;
+    statusEl.textContent = '';
+    alertEl.textContent = '';
     closing.options.onDismiss?.(reason);
+    if (!current && queued && showsQueuedAfter(reason)) {
+      const next = queued;
+      queued = null;
+      present(next.token, next.message, next.options);
+    }
   }
 
   actionBtn.addEventListener('click', () => {
@@ -133,7 +162,10 @@ export function createToaster(existing?: HTMLElement): Toaster {
     action.onAction();
   });
 
+  // Hover-pause only where hovering exists: on iOS a tap on the text fires
+  // mouseenter with no mouseleave, which would hold the Undo clock forever.
   element.addEventListener('mouseenter', () => {
+    if (!canHover?.matches) return;
     hovered = true;
     syncPause();
   });
@@ -171,16 +203,41 @@ export function createToaster(existing?: HTMLElement): Toaster {
   }
 
   function show(message: string, options: ToastOptions = {}): ToastHandle {
-    if (current) close('replaced');
     const token = nextToken++;
+    const arrival = toastArrival(
+      current && { hasAction: Boolean(current.options.action) },
+      { hasAction: Boolean(options.action) },
+    );
+    if (arrival === 'queue') {
+      queued?.options.onDismiss?.('replaced');
+      queued = { token, message, options };
+    } else {
+      if (arrival === 'replace') close('replaced');
+      present(token, message, options);
+    }
+
+    return {
+      dismiss: () => {
+        if (current?.token === token) close('dismissed');
+        else if (queued?.token === token) {
+          queued = null;
+          options.onDismiss?.('dismissed');
+        }
+      },
+      isActive: () => current?.token === token,
+    };
+  }
+
+  function present(token: number, message: string, options: ToastOptions) {
     current = { token, options };
 
     const isError = Boolean(options.isError);
-    messageEl.textContent = message;
+    // The regions are already in the tree; only their text changes.
+    (isError ? statusEl : alertEl).textContent = '';
+    (isError ? alertEl : statusEl).textContent = message;
     element.classList.toggle('toast-error', isError);
     element.classList.toggle('toast-info', !isError);
     element.classList.toggle('toast-has-action', Boolean(options.action));
-    element.setAttribute('role', isError ? 'alert' : 'status');
 
     if (options.action) {
       actionBtn.textContent = options.action.label;
@@ -195,23 +252,23 @@ export function createToaster(existing?: HTMLElement): Toaster {
     }
 
     place();
-    element.classList.remove('hidden');
-    // A pointer still resting where the toast appears keeps it paused.
-    hovered = element.matches(':hover');
+    element.classList.remove('toast-idle');
+    // A mouse still resting where the toast appears keeps it paused.
+    hovered = Boolean(canHover?.matches) && element.matches(':hover');
     if (hovered) syncPause();
     else startTimer();
-
-    return {
-      dismiss: () => {
-        if (current?.token === token) close('dismissed');
-      },
-      isActive: () => current?.token === token,
-    };
   }
 
   return {
     element,
     show,
-    hide: () => close('dismissed'),
+    hide: () => {
+      if (queued) {
+        const dropped = queued;
+        queued = null;
+        dropped.options.onDismiss?.('dismissed');
+      }
+      close('dismissed');
+    },
   };
 }

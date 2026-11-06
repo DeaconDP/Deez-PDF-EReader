@@ -265,8 +265,8 @@ button {
 .search-icon {
   position: absolute;
   left: var(--space-7);
-  width: 1.25rem;
-  height: 1.25rem;
+  width: var(--icon-md);
+  height: var(--icon-md);
   color: var(--text-muted);
   pointer-events: none;
 }
@@ -292,7 +292,7 @@ button {
 
 .search-input,
 .lookup-query-input {
-  padding-left: calc(var(--space-7) + 1.25rem + var(--space-5));
+  padding-left: calc(var(--space-7) + var(--icon-md) + var(--space-5));
 }
 
 .search-input::placeholder,
@@ -401,8 +401,8 @@ button {
 }
 
 .sort-filter-btn > .icon {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   color: var(--primary-ink);
 }
 
@@ -443,7 +443,7 @@ button {
   position: absolute;
   right: var(--page-pad);
   bottom: var(--fab-offset);
-  z-index: 20;
+  z-index: var(--z-float);
   max-width: calc(100% - 2 * var(--page-pad));
   margin-bottom: 0;
   padding-inline: var(--space-9) var(--space-10);
@@ -451,8 +451,8 @@ button {
 }
 
 .add-fab .icon {
-  width: 1.4em;
-  height: 1.4em;
+  width: var(--icon-fab);
+  height: var(--icon-fab);
 }
 
 /* ── Bottom tab bar ───────────────────────────────────────── */
@@ -523,7 +523,8 @@ button {
 }
 
 /* Very large text on a narrow phone: icons only (the labels stay as the
-   tabs' accessible names). */
+   tabs' accessible names). Container queries can't read custom properties,
+   so this 13em breakpoint stays literal. */
 @container (max-width: 13em) {
   .tab-bar-label {
     position: absolute;
@@ -539,7 +540,7 @@ button {
 .sheet {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-modal);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -601,16 +602,16 @@ button {
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: var(--icon-tile);
+  height: var(--icon-tile);
   border-radius: var(--radius-sm);
   background: var(--primary-tint);
   color: var(--primary-ink);
 }
 
 .sheet-option-icon .icon {
-  width: 1.4rem;
-  height: 1.4rem;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
 }
 
 .sheet-option-text {
@@ -720,9 +721,21 @@ button {
   gap: var(--space-6);
   min-width: 0;
   min-height: var(--tap-min);
+  margin: 0;
   padding: var(--space-7) var(--space-2) var(--space-7) var(--space-7);
+  border: 0;
   border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  -webkit-appearance: none;
+  appearance: none;
   cursor: pointer;
+}
+
+/* While renaming, the button is swapped for this plain container. */
+.pdf-card-info--editing {
+  cursor: auto;
 }
 
 .pdf-card-icon {
@@ -855,7 +868,13 @@ button {
 /* Lift the card whose menu is open above its neighbours (cards that popped
    in keep their own stacking context). */
 .pdf-card--menu-open {
-  z-index: 20;
+  z-index: var(--z-float);
+}
+
+/* The Add button floats at the same layer: step it aside while a card menu
+   is open so it can't cover the menu's items. */
+.library-main--menu-open .add-fab {
+  visibility: hidden;
 }
 
 .pdf-more-btn[aria-expanded='true'] {
@@ -867,7 +886,7 @@ button {
   position: absolute;
   top: calc(100% - var(--space-3));
   right: var(--space-3);
-  z-index: 30;
+  z-index: var(--z-menu);
   display: flex;
   flex-direction: column;
   min-width: var(--menu-min-w);
@@ -878,6 +897,12 @@ button {
   background: var(--surface);
   box-shadow: 0 var(--lip) 0 var(--border-lip);
   animation: fadeIn var(--dur-fast) var(--ease-gentle);
+}
+
+/* Not enough room below inside the list (above the tab bar): open upward. */
+.pdf-card-menu--up {
+  top: auto;
+  bottom: calc(100% - var(--space-3));
 }
 
 .pdf-card-menu-item {
@@ -899,8 +924,8 @@ button {
 
 .pdf-card-menu-item .icon {
   flex: none;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: var(--icon-md);
+  height: var(--icon-md);
   color: var(--text-muted);
 }
 
@@ -910,7 +935,7 @@ button {
 }
 
 .pdf-card-menu-item:focus-visible {
-  outline-offset: -3px;
+  outline-offset: var(--focus-offset-inset);
 }
 
 .pdf-card-menu-item-danger,
@@ -1055,7 +1080,7 @@ button {
   position: fixed;
   bottom: calc(var(--toast-floor, env(safe-area-inset-bottom)) + var(--space-6));
   left: 50%;
-  z-index: 300;
+  z-index: var(--z-toast);
   width: max-content;
   max-width: min(calc(100vw - 2 * var(--page-pad)), var(--toast-max-w));
   padding: var(--space-6) var(--space-8);
@@ -1071,6 +1096,14 @@ button {
   animation: toastIn var(--dur-bouncy) var(--ease-bouncy);
 }
 
+/* Idle: transparent rather than display:none, so the live regions inside stay
+   in the accessibility tree and new messages are announced. */
+.toast.toast-idle {
+  opacity: 0;
+  pointer-events: none;
+  animation: none;
+}
+
 .toast-has-action {
   display: flex;
   align-items: center;
@@ -1083,6 +1116,15 @@ button {
 .toast-message {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* The unused live region (status or alert) stays in the tree, out of sight. */
+.toast-message:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 .toast-action {
@@ -1119,7 +1161,7 @@ button {
 .download-dialog {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-modal);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -1345,7 +1387,7 @@ button {
 .reader-header {
   container-type: inline-size;
   position: relative;
-  z-index: 10;
+  z-index: var(--z-raised);
   flex: none;
   display: flex;
   align-items: center;
@@ -1444,7 +1486,7 @@ button {
   position: absolute;
   top: calc(100% + var(--space-4));
   right: 0;
-  z-index: 30;
+  z-index: var(--z-menu);
   display: flex;
   flex-direction: column;
   min-width: 14rem;
@@ -1613,7 +1655,7 @@ button {
 
 .reader-bottom-bar {
   position: relative;
-  z-index: 10;
+  z-index: var(--z-raised);
   flex: none;
   padding: var(--space-5) var(--page-pad) calc(var(--space-3) + env(safe-area-inset-bottom));
   border-top: var(--hairline) solid var(--reader-chrome-edge);
@@ -1672,7 +1714,7 @@ button {
   position: absolute;
   top: var(--space-4);
   left: 50%;
-  z-index: 20;
+  z-index: var(--z-float);
   width: 1px;
   height: 1px;
   margin: -1px;
@@ -1776,7 +1818,7 @@ button {
 .loading-overlay {
   position: absolute;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1833,7 +1875,7 @@ button {
   position: fixed;
   right: var(--space-8);
   bottom: calc(var(--space-8) + env(safe-area-inset-bottom));
-  z-index: 400;
+  z-index: var(--z-debug);
   display: flex;
   flex-direction: column;
   width: min(25rem, calc(100vw - 2rem));

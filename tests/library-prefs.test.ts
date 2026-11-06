@@ -46,3 +46,15 @@ test('a hidden control cannot hide books', () => {
   assert.deepEqual(effectiveLibraryPrefs(picked, 7), picked);
   assert.equal(isDefaultLibraryPrefs(effectiveLibraryPrefs(picked, 3)), true);
 });
+
+test('dipping to six books applies defaults without losing the saved choice', () => {
+  const saved = Object.freeze({ filter: 'reading', sort: 'name-asc' } as const);
+  const raw = JSON.stringify(saved);
+  // Removing the seventh book: defaults while the control is hidden...
+  assert.deepEqual(effectiveLibraryPrefs(parseLibraryPrefs(raw), 6), DEFAULT_LIBRARY_PREFS);
+  assert.deepEqual(saved, { filter: 'reading', sort: 'name-asc' });
+  // ...and Undo (or adding a book) brings the saved choice straight back.
+  assert.deepEqual(effectiveLibraryPrefs(parseLibraryPrefs(raw), 7), saved);
+  // The defaults handed out are a fresh object, not the shared frozen one.
+  assert.notEqual(effectiveLibraryPrefs(saved, 0), DEFAULT_LIBRARY_PREFS);
+});

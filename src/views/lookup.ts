@@ -7,7 +7,7 @@ import { cachePreviewBlob } from '../lib/lookup/preview-cache';
 import { logger } from '../lib/logger';
 import { showLoading } from '../components/loading';
 import { sym } from '../lib/symbols';
-import { createToaster } from '../components/toast';
+import type { Toaster } from '../components/toast';
 import { WEB_SEARCH_ENABLED, enabledSources, usableSourceFilter, type SourceFilter } from '../lib/lookup/sources';
 import type { PdfMeta } from '../lib/library';
 
@@ -18,6 +18,8 @@ export type LookupPanelCallbacks = {
 
 export type LookupPanelOptions = {
   loadingRoot: HTMLElement;
+  /** The host view's toaster: one toast per view, so messages never overlap. */
+  toaster: Toaster;
 };
 
 const SOURCE_LABELS: Record<LookupSource, string> = {
@@ -71,8 +73,6 @@ export function createLookupPanel(
         </button>
       </div>
     </div>
-
-    <div class="toast hidden" role="status" aria-live="polite"></div>
   `;
 
   const queryInput = panel.querySelector('.lookup-query-input') as HTMLInputElement;
@@ -89,7 +89,6 @@ export function createLookupPanel(
     return filter === 'all' ? 'any source' : SOURCE_LABELS[filter];
   }
   const noticeEl = panel.querySelector('.lookup-notice') as HTMLElement;
-  const toast = panel.querySelector('.toast') as HTMLElement;
   const loadingRoot = options.loadingRoot;
 
   // Restored from the last search so coming back from a preview keeps the results.
@@ -103,7 +102,7 @@ export function createLookupPanel(
     savedSearch = { query: lastQuery, results: allResults, filter: sourceFilter, addedIds, notice: lastNotice };
   }
 
-  const { show: showToast } = createToaster(toast);
+  const showToast = options.toaster.show;
 
   function syncChips() {
     filterChips.forEach((chip) => {

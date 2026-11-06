@@ -32,14 +32,24 @@ const messages: Record<ErrorCode, string> = {
   'ERR-DB-001': 'Failed to save data to local storage',
 };
 
+export type AppErrorOptions = {
+  /**
+   * The file itself is the problem (e.g. pdf.js says it is damaged or
+   * password-protected), so trying again can't help. Defaults to false.
+   */
+  permanent?: boolean;
+};
+
 export class AppError extends Error {
   code: ErrorCode;
+  permanent: boolean;
 
-  constructor(code: ErrorCode, detail?: string) {
+  constructor(code: ErrorCode, detail?: string, options?: AppErrorOptions) {
     const base = messages[code];
     super(detail ? `${base}: ${detail}` : base);
     this.code = code;
     this.name = 'AppError';
+    this.permanent = Boolean(options?.permanent);
   }
 }
 
@@ -101,6 +111,8 @@ function friendlyDownloadError(detail: string): string | undefined {
 export function friendlyError(err: unknown): string {
   if (err instanceof AppError) {
     const detail = errorDetailOf(err);
+    // A load that failed for a passing reason (memory, worker) isn't "damaged".
+    if (err.code === 'ERR-PDF-001' && !err.permanent) return 'This PDF didn’t open this time. Try again.';
     if (err.code === 'ERR-LIB-003') {
       const download = friendlyDownloadError(detail);
       if (download) return download;

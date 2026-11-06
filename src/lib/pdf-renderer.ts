@@ -1,5 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { AppError, ErrorCodes } from './errors';
+import { isPermanentPdfLoadError } from './error-recovery';
 import { logger } from './logger';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -131,7 +132,9 @@ export class PdfRenderer {
       this.scheduleSave();
     } catch (err) {
       logger.logError(`PDF load failed (${this.pdfId})`, err);
-      throw new AppError(ErrorCodes.PDF_001, this.pdfId);
+      // Only a damaged/protected file is permanent; reading the blob, the
+      // worker, memory or the first render may well work on a retry.
+      throw new AppError(ErrorCodes.PDF_001, this.pdfId, { permanent: isPermanentPdfLoadError(err) });
     }
   }
 
