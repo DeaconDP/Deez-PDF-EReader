@@ -12,7 +12,7 @@ test('download failures get a reason-specific message', () => {
   assert.match(dl('Response is not a PDF'), /didn’t give us a PDF/);
   assert.match(dl('Invalid URL'), /should start with https/);
   assert.match(dl('Failed to fetch'), /couldn’t reach that link/);
-  assert.equal(dl('Save cancelled'), 'Download cancelled.');
+  assert.equal(dl('Save cancelled'), 'Cancelled, so nothing was added.');
 });
 
 test('escapeHtml is safe inside quoted attributes', () => {

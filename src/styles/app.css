@@ -106,6 +106,11 @@ button {
   max-width: none;
 }
 
+/* The tab bar belongs to the library view; never show it over the reader. */
+#app.reader-active .tab-bar {
+  display: none;
+}
+
 .view {
   position: relative;
   flex: 1;
@@ -211,12 +216,6 @@ button {
   transform: translateY(var(--lip-sm));
 }
 
-/* File input lives inside its label: show the label's focus ring */
-.add-pdf-btn:focus-within {
-  outline: 3px solid var(--focus-ring);
-  outline-offset: 3px;
-}
-
 .btn-icon {
   display: inline-flex;
   flex: none;
@@ -315,9 +314,6 @@ button {
 /* ── Library shell ────────────────────────────────────────── */
 .library-shell-header {
   flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
   padding: var(--space-4) var(--page-pad) var(--space-6);
 }
 
@@ -346,43 +342,14 @@ button {
   color: var(--primary-ink);
 }
 
-.segmented-control {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  border: var(--border-w) solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-sunken);
-}
-
-.segmented-control-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  min-height: var(--tap-min);
-  padding: var(--space-2) var(--space-4);
-  border: var(--border-w) solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: var(--text-small);
-  font-weight: var(--weight-heading);
-  transition:
-    background-color var(--dur-fast) ease-out,
-    color var(--dur-fast) ease-out,
-    transform var(--dur-press) ease-out;
-}
-
-.segmented-control-btn:active {
-  transform: scale(var(--press-scale));
-}
-
-.segmented-control-btn[aria-selected='true'] {
-  border-color: var(--selected-edge);
-  background: var(--primary-tint);
-  color: var(--primary-ink);
+/* Holds the scrolling panels and the floating Add button; the tab bar sits
+   below it in the flow, so nothing scrolls underneath the bar. */
+.library-main {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .library-panel {
@@ -394,20 +361,16 @@ button {
   padding: var(--space-2) var(--page-pad) 0;
 }
 
+/* Room at the end of the list for the floating Add button (its height is
+   measured into --fab-h, so it follows Dynamic Type). */
+.library-panel--with-fab {
+  padding-bottom: calc(var(--fab-h, var(--button-h)) + var(--lip) + var(--fab-offset));
+}
+
 .library-toolbar {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-}
-
-.library-toolbar-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-  gap: var(--space-5) var(--space-6);
-}
-
-.library-toolbar-actions .btn {
-  margin-bottom: var(--lip);
 }
 
 .library-controls {
@@ -418,43 +381,45 @@ button {
   margin: var(--space-7) 0 var(--space-6);
 }
 
-.control-label {
-  position: relative;
+.sort-filter-btn {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  margin-bottom: var(--lip-sm);
-}
-
-.control-label select {
+  gap: var(--space-3);
   min-height: var(--tap-min);
-  padding: var(--space-2) calc(var(--space-6) + 1rem) var(--space-2) calc(var(--space-6) + 1.25rem);
-  border: var(--border-w) solid var(--border);
+  margin-bottom: var(--lip-sm);
+  padding: var(--space-2) var(--space-7) var(--space-2) var(--space-6);
+  border: var(--border-w) solid var(--border-strong);
   border-radius: var(--radius-pill);
   background: var(--surface);
   box-shadow: 0 var(--lip-sm) 0 var(--border-lip);
   color: var(--text);
   font-size: var(--text-small);
   font-weight: var(--weight-label);
-  -webkit-appearance: none;
-  appearance: none;
+  text-align: start;
+  transition: transform var(--dur-press) ease-out;
 }
 
-.control-glyph {
-  position: absolute;
-  left: var(--space-6);
+.sort-filter-btn > .icon {
   width: 1.1rem;
   height: 1.1rem;
   color: var(--primary-ink);
-  pointer-events: none;
 }
 
-.control-chevron {
-  position: absolute;
-  right: var(--space-5);
-  width: 1rem;
-  height: 1rem;
-  color: var(--text-muted);
-  pointer-events: none;
+.sort-filter-btn:active {
+  transform: translateY(var(--lip-sm));
+  box-shadow: none;
+}
+
+/* An active filter is spelled out on the button, not just coloured. */
+.sort-filter-state {
+  padding: 0 var(--space-4);
+  border: var(--border-w) solid var(--selected-edge);
+  border-radius: var(--radius-pill);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
 }
 
 .library-panel--empty .library-toolbar,
@@ -471,6 +436,249 @@ button {
   color: var(--text-muted);
   font-size: var(--text-caption);
   font-weight: var(--weight-label);
+}
+
+/* ── Add button (floats above the tab bar, thumb side) ─────── */
+.add-fab {
+  position: absolute;
+  right: var(--page-pad);
+  bottom: var(--fab-offset);
+  z-index: 20;
+  max-width: calc(100% - 2 * var(--page-pad));
+  margin-bottom: 0;
+  padding-inline: var(--space-9) var(--space-10);
+  border-radius: var(--radius-pill);
+}
+
+.add-fab .icon {
+  width: 1.4em;
+  height: 1.4em;
+}
+
+/* ── Bottom tab bar ───────────────────────────────────────── */
+.tab-bar {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--page-pad) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-top: var(--border-w) solid var(--border);
+  background: var(--surface);
+  container-type: inline-size;
+  /* Grows with Dynamic Type up to a cap, like the system tab bar. */
+  font-size: min(var(--text-caption), var(--tab-label-max));
+}
+
+.tab-bar-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: var(--tab-h);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: inherit;
+  font-weight: var(--weight-label);
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: break-word;
+  transition: color var(--dur-fast) ease-out;
+}
+
+.tab-bar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) var(--space-7);
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-pill);
+  transition:
+    background-color var(--dur-fast) ease-out,
+    transform var(--dur-press) ease-out;
+}
+
+.tab-bar-icon .icon {
+  width: min(1.5rem, var(--tab-icon-max));
+  height: min(1.5rem, var(--tab-icon-max));
+}
+
+.tab-bar-tab:active .tab-bar-icon {
+  transform: scale(var(--press-scale));
+}
+
+/* Selected: outlined pill (3:1 edge) plus heavier label, not colour alone. */
+.tab-bar-tab[aria-selected='true'] {
+  color: var(--primary-ink);
+  font-weight: var(--weight-heading);
+}
+
+.tab-bar-tab[aria-selected='true'] .tab-bar-icon {
+  border-color: var(--selected-edge);
+  background: var(--primary-tint);
+}
+
+/* Very large text on a narrow phone: icons only (the labels stay as the
+   tabs' accessible names). */
+@container (max-width: 13em) {
+  .tab-bar-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* ── Bottom sheets (Add, Sort & filter) ─────────────────────── */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: calc(env(safe-area-inset-top) + var(--space-10));
+  background: var(--scrim);
+  animation: fadeIn var(--dur-fast) ease-out;
+}
+
+.sheet-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: min(100%, var(--sheet-max-w));
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-9) var(--page-pad) calc(var(--space-6) + env(safe-area-inset-bottom));
+  border: var(--border-w) solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--surface);
+  animation: sheetRise var(--dur-bouncy) var(--ease-snappy);
+}
+
+.sheet-title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+}
+
+.sheet-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.sheet-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-7);
+  min-height: var(--button-h);
+  margin-bottom: var(--lip-sm);
+  padding: var(--space-6) var(--space-8);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 var(--lip-sm) 0 var(--border-lip);
+  color: var(--text);
+  text-align: start;
+  transition: transform var(--dur-press) ease-out;
+}
+
+.sheet-option:active {
+  transform: translateY(var(--lip-sm));
+  box-shadow: none;
+}
+
+.sheet-option-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+
+.sheet-option-icon .icon {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.sheet-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sheet-option-label {
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+}
+
+.sheet-option-hint {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-support);
+}
+
+.sheet-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-group-label {
+  padding-bottom: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  text-transform: uppercase;
+}
+
+.sheet-radio {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  min-height: var(--tap-min);
+  padding: var(--space-3) var(--space-6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-weight: var(--weight-support);
+  text-align: start;
+}
+
+.sheet-radio:active {
+  background: var(--surface-sunken);
+}
+
+.sheet-radio-check {
+  visibility: hidden;
+  color: var(--primary-ink);
+}
+
+.sheet-radio[aria-checked='true'] {
+  font-weight: var(--weight-heading);
+}
+
+.sheet-radio[aria-checked='true'] .sheet-radio-check {
+  visibility: visible;
+}
+
+.sheet-panel > .btn {
+  margin-top: var(--space-2);
 }
 
 /* ── PDF cards ────────────────────────────────────────────── */
@@ -810,7 +1018,7 @@ button {
   align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-12);
-  padding: var(--space-6) 0 calc(var(--space-8) + env(safe-area-inset-bottom));
+  padding: var(--space-6) 0 var(--space-8);
   border-top: var(--border-w) dashed var(--border);
   color: var(--text-muted);
   font-size: var(--text-caption);
@@ -839,10 +1047,13 @@ button {
   text-decoration: none;
 }
 
-/* ── Toast ────────────────────────────────────────────────── */
+/* ── Toast ────────────────────────────────────────────────────
+   At the bottom, clear of the thumb-side chrome: toast.ts measures the tab
+   bar / Add button / reader bottom bar into --toast-floor; with none showing
+   it rests on the bottom safe area. */
 .toast {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + var(--space-6));
+  bottom: calc(var(--toast-floor, env(safe-area-inset-bottom)) + var(--space-6));
   left: 50%;
   z-index: 300;
   width: max-content;
@@ -1683,30 +1894,6 @@ button {
 
 /* ── Wider screens (iPad, desktop) ────────────────────────── */
 @media (min-width: 600px) {
-  .library-shell-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .segmented-control {
-    min-width: 22rem;
-  }
-
-  .library-toolbar {
-    flex-direction: row-reverse;
-    align-items: flex-start;
-  }
-
-  .library-toolbar .search-box {
-    flex: 1;
-  }
-
-  .library-toolbar-actions {
-    flex: none;
-    grid-template-columns: auto auto;
-  }
-
   .pdf-list,
   .lookup-results {
     display: grid;
@@ -1748,8 +1935,13 @@ button {
   to { opacity: 1; transform: none; }
 }
 
+@keyframes sheetRise {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
 @keyframes toastIn {
-  from { opacity: 0; transform: translate(-50%, -12px) scale(0.96); }
+  from { opacity: 0; transform: translate(-50%, 12px) scale(0.96); }
   to { opacity: 1; transform: translateX(-50%); }
 }
 
@@ -1794,6 +1986,9 @@ button {
   .reader-add-btn:active:not(:disabled),
   .lookup-filter-chip:active,
   .toast-action:active,
+  .sort-filter-btn:active,
+  .sheet-option:active,
+  .tab-bar-tab:active .tab-bar-icon,
   .pdf-card:has(.pdf-card-info:active) {
     transform: none;
   }

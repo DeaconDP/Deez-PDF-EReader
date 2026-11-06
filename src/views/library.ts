@@ -6,10 +6,20 @@ import {
   removePdf,
   renamePdf,
   supportsSaveFilePicker,
-  type PdfFilter,
   type PdfMeta,
-  type PdfSort,
 } from '../lib/library';
+import {
+  DEFAULT_LIBRARY_PREFS,
+  FILTER_OPTIONS,
+  SORT_OPTIONS,
+  effectiveLibraryPrefs,
+  isDefaultLibraryPrefs,
+  isLibraryFilter,
+  isLibrarySort,
+  parseLibraryPrefs,
+  showsSortFilter,
+  type LibraryPrefs,
+} from '../lib/library-prefs';
 import { errorDetailOf, escapeHtml, friendlyError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { showLoading } from '../components/loading';
@@ -43,23 +53,29 @@ export type LibraryOptions = {
 const PREFS_KEY = 'deezpdf-library-prefs';
 const TAB_KEY = 'deezpdf-library-tab';
 
-type LibraryPrefs = {
-  filter: PdfFilter;
-  sort: PdfSort;
-};
-
 function loadPrefs(): LibraryPrefs {
   try {
-    const raw = localStorage.getItem(PREFS_KEY);
-    if (raw) return JSON.parse(raw) as LibraryPrefs;
+    // Sorts that are no longer offered fall back to the default here.
+    return parseLibraryPrefs(localStorage.getItem(PREFS_KEY));
   } catch {
-    /* ignore */
+    return { ...DEFAULT_LIBRARY_PREFS };
   }
-  return { filter: 'all', sort: 'lastOpened-desc' };
 }
 
 function savePrefs(prefs: LibraryPrefs) {
-  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    /* ignore */
+  }
+}
+
+function radioOption(value: string, label: string): string {
+  return `
+    <button type="button" class="sheet-radio" role="radio" aria-checked="false" tabindex="-1" data-value="${value}">
+      <span class="sheet-radio-label">${label}</span>
+      <span class="sheet-radio-check icon" aria-hidden="true">${sym.check}</span>
+    </button>`;
 }
 
 function loadTab(): LibraryTab {
@@ -91,104 +107,119 @@ export function createLibraryView(
         </div>
         <h1 class="logo logo-compact">Deez<span class="accent">PDF</span></h1>
       </div>
-      <div class="segmented-control" role="tablist" aria-label="Library sections">
-        <button type="button" class="segmented-control-btn" role="tab" id="tab-library" aria-controls="panel-library" aria-selected="true" tabindex="0">
-          <span class="icon" aria-hidden="true">${sym.document}</span><span>My Library</span>
-        </button>
-        <button type="button" class="segmented-control-btn" role="tab" id="tab-find" aria-controls="panel-find" aria-selected="false" tabindex="-1">
-          <span class="icon" aria-hidden="true">${sym.lookup}</span><span>Find Online</span>
-        </button>
-      </div>
     </header>
 
-    <div class="library-panel" id="panel-library" role="tabpanel" aria-labelledby="tab-library">
-      <div class="library-toolbar">
-        <div class="library-toolbar-actions">
-          <label class="btn btn-primary add-pdf-btn">
-            <span class="icon" aria-hidden="true">${sym.add}</span>
-            <span class="btn-label">Add PDF</span>
-            <input type="file" accept=".pdf,application/pdf" multiple class="file-input visually-hidden" id="library-file-input" aria-label="Add PDF" />
-          </label>
-          <button type="button" class="btn btn-secondary download-btn download-btn-inline">
-            <span class="icon" aria-hidden="true">${sym.link}</span>
-            <span class="btn-label">From a link</span>
-          </button>
-        </div>
-        <div class="search-box">
-          <span class="search-icon icon" aria-hidden="true">${sym.search}</span>
-          <input type="search" class="search-input" placeholder="Search your PDFs" aria-label="Search your PDFs" enterkeyhint="search" />
-        </div>
-      </div>
-
-      <div class="library-controls">
-        <label class="control-label">
-          <span class="control-glyph icon" aria-hidden="true">${sym.filter}</span>
-          <span class="visually-hidden">Show</span>
-          <select class="filter-select" aria-label="Show">
-            <option value="all">All PDFs</option>
-            <option value="unread">Not started</option>
-            <option value="reading">Reading</option>
-            <option value="finished">Finished</option>
-          </select>
-          <span class="control-chevron icon" aria-hidden="true">${sym.chevronDown}</span>
-        </label>
-        <label class="control-label">
-          <span class="control-glyph icon" aria-hidden="true">${sym.sort}</span>
-          <span class="visually-hidden">Sort by</span>
-          <select class="sort-select" aria-label="Sort by">
-            <option value="lastOpened-desc">Recently opened</option>
-            <option value="dateAdded-desc">Newest added</option>
-            <option value="dateAdded-asc">Oldest added</option>
-            <option value="name-asc">Name A–Z</option>
-            <option value="name-desc">Name Z–A</option>
-            <option value="size-desc">Largest</option>
-            <option value="size-asc">Smallest</option>
-          </select>
-          <span class="control-chevron icon" aria-hidden="true">${sym.chevronDown}</span>
-        </label>
-        <span class="library-count" aria-live="polite"></span>
-      </div>
-
-      <div class="content-scroll library-content">
-        <div class="pdf-list" role="list" aria-label="Your PDFs"></div>
-        <div class="empty-state hidden">
-          <div class="empty-illustration" aria-hidden="true"></div>
-          <p class="empty-message">Your shelf is empty</p>
-          <p class="empty-hint">Add a PDF from your phone, or find a free classic online.</p>
-          <div class="empty-actions">
-            <label for="library-file-input" class="btn btn-primary empty-add-btn" role="button" tabindex="0">
-              <span class="icon" aria-hidden="true">${sym.add}</span>
-              <span class="btn-label">Add a PDF</span>
-            </label>
-            <button type="button" class="btn btn-secondary empty-find-btn">
-              <span class="icon" aria-hidden="true">${sym.lookup}</span>
-              <span class="btn-label">Find a free book</span>
-            </button>
-            <button type="button" class="btn btn-ghost empty-link-btn">
-              <span class="icon" aria-hidden="true">${sym.link}</span>
-              <span class="btn-label">Paste a link</span>
-            </button>
-            <button type="button" class="btn btn-secondary empty-clear-btn hidden">
-              <span class="icon" aria-hidden="true">${sym.refresh}</span>
-              <span class="btn-label">Show everything</span>
-            </button>
+    <div class="library-main">
+      <div class="library-panel" id="panel-library" role="tabpanel" aria-labelledby="tab-library">
+        <div class="library-toolbar">
+          <div class="search-box">
+            <span class="search-icon icon" aria-hidden="true">${sym.search}</span>
+            <input type="search" class="search-input" placeholder="Search your PDFs" aria-label="Search your PDFs" enterkeyhint="search" />
           </div>
         </div>
-        <footer class="app-footer">
-          <p class="privacy-note"><span class="icon" aria-hidden="true">${sym.sparkle}</span>Your PDFs stay on this device. Nothing is uploaded.</p>
-          <p class="credit">
-            Made by
-            <a href="https://deac.online" target="_blank" rel="noopener" class="credit-link">deac.online</a>
-            at
-            <a href="https://worldbuild.io" target="_blank" rel="noopener" class="credit-link">worldbuild.io</a>
-          </p>
-        </footer>
+
+        <div class="library-controls">
+          <button type="button" class="sort-filter-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="sort-filter-sheet" hidden>
+            <span class="icon" aria-hidden="true">${sym.sort}</span>
+            <span class="sort-filter-btn-label">Sort &amp; filter</span>
+            <span class="sort-filter-state" hidden></span>
+          </button>
+          <span class="library-count" aria-live="polite"></span>
+        </div>
+
+        <div class="content-scroll library-content">
+          <div class="pdf-list" role="list" aria-label="Your PDFs"></div>
+          <div class="empty-state hidden">
+            <div class="empty-illustration" aria-hidden="true"></div>
+            <p class="empty-message">Your shelf is empty</p>
+            <p class="empty-hint"></p>
+            <div class="empty-actions">
+              <button type="button" class="btn btn-primary empty-add-btn" aria-haspopup="dialog" aria-controls="add-sheet">
+                <span class="icon" aria-hidden="true">${sym.add}</span>
+                <span class="btn-label">Add a PDF</span>
+              </button>
+              <button type="button" class="btn btn-secondary empty-find-btn">
+                <span class="icon" aria-hidden="true">${sym.lookup}</span>
+                <span class="btn-label">Find a free book</span>
+              </button>
+              <button type="button" class="btn btn-secondary empty-clear-btn hidden">
+                <span class="icon" aria-hidden="true">${sym.refresh}</span>
+                <span class="btn-label">Show everything</span>
+              </button>
+            </div>
+          </div>
+          <footer class="app-footer">
+            <p class="privacy-note"><span class="icon" aria-hidden="true">${sym.sparkle}</span>Your PDFs stay on this device. Nothing is uploaded.</p>
+            <p class="credit">
+              Made by
+              <a href="https://deac.online" target="_blank" rel="noopener" class="credit-link">deac.online</a>
+              at
+              <a href="https://worldbuild.io" target="_blank" rel="noopener" class="credit-link">worldbuild.io</a>
+            </p>
+          </footer>
+        </div>
+      </div>
+
+      <div class="library-panel hidden" id="panel-find" role="tabpanel" aria-labelledby="tab-find" hidden></div>
+
+      <button type="button" class="btn btn-primary add-fab" aria-label="Add a PDF" aria-haspopup="dialog" aria-expanded="false" aria-controls="add-sheet" data-toast-floor hidden>
+        <span class="icon" aria-hidden="true">${sym.add}</span>
+        <span class="btn-label">Add</span>
+      </button>
+    </div>
+
+    <div class="tab-bar" role="tablist" aria-label="Library sections" data-toast-floor>
+      <button type="button" class="tab-bar-tab" role="tab" id="tab-library" aria-controls="panel-library" aria-selected="true" tabindex="0">
+        <span class="tab-bar-icon" aria-hidden="true"><span class="icon">${sym.document}</span></span>
+        <span class="tab-bar-label">My Library</span>
+      </button>
+      <button type="button" class="tab-bar-tab" role="tab" id="tab-find" aria-controls="panel-find" aria-selected="false" tabindex="-1">
+        <span class="tab-bar-icon" aria-hidden="true"><span class="icon">${sym.lookup}</span></span>
+        <span class="tab-bar-label">Find Online</span>
+      </button>
+    </div>
+
+    <input type="file" accept=".pdf,application/pdf" multiple class="file-input visually-hidden" id="library-file-input" tabindex="-1" aria-hidden="true" />
+    <div class="toast hidden" role="status" aria-live="polite"></div>
+
+    <div class="sheet hidden" id="add-sheet" role="dialog" aria-modal="true" aria-labelledby="add-sheet-title">
+      <div class="sheet-panel">
+        <h2 class="sheet-title" id="add-sheet-title">Add a PDF</h2>
+        <div class="sheet-options">
+          <button type="button" class="sheet-option add-from-files" aria-labelledby="add-files-label" aria-describedby="add-files-hint">
+            <span class="sheet-option-icon" aria-hidden="true"><span class="icon">${sym.folder}</span></span>
+            <span class="sheet-option-text">
+              <span class="sheet-option-label" id="add-files-label">From Files</span>
+              <span class="sheet-option-hint" id="add-files-hint">Pick PDFs saved on this device</span>
+            </span>
+          </button>
+          <button type="button" class="sheet-option add-from-link" aria-labelledby="add-link-label" aria-describedby="add-link-hint">
+            <span class="sheet-option-icon" aria-hidden="true"><span class="icon">${sym.link}</span></span>
+            <span class="sheet-option-text">
+              <span class="sheet-option-label" id="add-link-label">From a link</span>
+              <span class="sheet-option-hint" id="add-link-hint">Paste a web link to a PDF</span>
+            </span>
+          </button>
+        </div>
+        <button type="button" class="btn btn-ghost sheet-close-btn">Cancel</button>
       </div>
     </div>
 
-    <div class="library-panel hidden" id="panel-find" role="tabpanel" aria-labelledby="tab-find" hidden></div>
+    <div class="sheet hidden" id="sort-filter-sheet" role="dialog" aria-modal="true" aria-labelledby="sort-filter-title">
+      <div class="sheet-panel">
+        <h2 class="sheet-title" id="sort-filter-title">Sort &amp; filter</h2>
+        <div class="sheet-group" role="radiogroup" aria-labelledby="sort-group-label" data-pref="sort">
+          <p class="sheet-group-label" id="sort-group-label">Sort by</p>
+          ${SORT_OPTIONS.map((o) => radioOption(o.value, o.label)).join('')}
+        </div>
+        <div class="sheet-group" role="radiogroup" aria-labelledby="filter-group-label" data-pref="filter">
+          <p class="sheet-group-label" id="filter-group-label">Show</p>
+          ${FILTER_OPTIONS.map((o) => radioOption(o.value, o.label)).join('')}
+        </div>
+        <button type="button" class="btn btn-primary sheet-close-btn">Done</button>
+      </div>
+    </div>
 
-    <div class="toast hidden" role="status" aria-live="polite"></div>
     <div class="download-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="download-dialog-title" aria-describedby="download-dialog-hint">
       <div class="download-dialog-panel">
         <div class="download-dialog-header">
@@ -207,7 +238,7 @@ export function createLibraryView(
           <button type="button" class="btn btn-ghost download-cancel-btn">Cancel</button>
           <button type="button" class="btn btn-primary download-submit-btn">
             <span class="icon" aria-hidden="true">${sym.add}</span>
-            <span class="btn-label">Add PDF</span>
+            <span class="btn-label">Add</span>
           </button>
         </div>
       </div>
@@ -218,12 +249,17 @@ export function createLibraryView(
   const tabFind = view.querySelector('#tab-find') as HTMLButtonElement;
   const panelLibrary = view.querySelector('#panel-library') as HTMLElement;
   const panelFind = view.querySelector('#panel-find') as HTMLElement;
+  const libraryMain = view.querySelector('.library-main') as HTMLElement;
+  const tabBar = view.querySelector('.tab-bar') as HTMLElement;
+  const shellHeader = view.querySelector('.library-shell-header') as HTMLElement;
   const searchInput = view.querySelector('.search-input') as HTMLInputElement;
-  const filterSelect = view.querySelector('.filter-select') as HTMLSelectElement;
-  const sortSelect = view.querySelector('.sort-select') as HTMLSelectElement;
+  const sortFilterBtn = view.querySelector('.sort-filter-btn') as HTMLButtonElement;
+  const sortFilterState = view.querySelector('.sort-filter-state') as HTMLElement;
+  const sortFilterSheet = view.querySelector('#sort-filter-sheet') as HTMLElement;
   const libraryCount = view.querySelector('.library-count') as HTMLElement;
   const fileInput = view.querySelector('.file-input') as HTMLInputElement;
-  const downloadBtn = view.querySelector('.download-btn-inline') as HTMLButtonElement;
+  const addFab = view.querySelector('.add-fab') as HTMLButtonElement;
+  const addSheet = view.querySelector('#add-sheet') as HTMLElement;
   const downloadDialog = view.querySelector('.download-dialog') as HTMLElement;
   const downloadUrlInput = view.querySelector('.download-url-input') as HTMLInputElement;
   const downloadSaveHint = view.querySelector('.download-save-hint') as HTMLElement;
@@ -235,18 +271,15 @@ export function createLibraryView(
   const emptyMessage = view.querySelector('.empty-message') as HTMLElement;
   const emptyHint = view.querySelector('.empty-hint') as HTMLElement;
   const emptyIllustration = view.querySelector('.empty-illustration') as HTMLElement;
-  const emptyAddBtn = view.querySelector('.empty-add-btn') as HTMLElement;
+  const emptyAddBtn = view.querySelector('.empty-add-btn') as HTMLButtonElement;
   const emptyFindBtn = view.querySelector('.empty-find-btn') as HTMLButtonElement;
   const emptyClearBtn = view.querySelector('.empty-clear-btn') as HTMLButtonElement;
-  const emptyLinkBtn = view.querySelector('.empty-link-btn') as HTMLButtonElement;
 
   view.querySelectorAll('.credit-link').forEach((link) => {
     link.addEventListener('click', () => onCreditClick());
   });
 
-  const prefs = loadPrefs();
-  filterSelect.value = prefs.filter;
-  sortSelect.value = prefs.sort;
+  let prefs = loadPrefs();
 
   let pdfs: PdfMeta[] = [];
   let activeTab: LibraryTab = options?.initialTab ?? loadTab();
@@ -465,6 +498,7 @@ export function createLibraryView(
     document.removeEventListener('visibilitychange', onVisibilityChange);
     window.removeEventListener('pagehide', commitRemovalsNow);
     document.removeEventListener('pointerdown', onDocumentPointerDown);
+    fabObserver?.disconnect();
   });
 
   function setTab(tab: LibraryTab, focusSearch = false) {
@@ -481,6 +515,7 @@ export function createLibraryView(
     panelFind.classList.toggle('hidden', isLibrary);
     panelFind.hidden = isLibrary;
     panelLibrary.hidden = !isLibrary;
+    syncFab();
 
     // Only jump into the search field with a keyboard/mouse; on touch it would
     // pop the on-screen keyboard over the welcome state.
@@ -521,10 +556,149 @@ export function createLibraryView(
     tab.addEventListener('keydown', (e) => handleTabKeydown(e, tabs, index));
   });
 
-  setTab(activeTab);
-
   let dialogReturnFocus: HTMLElement | null = null;
-  const backgroundEls = [view.querySelector('.library-shell-header') as HTMLElement, panelLibrary, panelFind];
+  // Everything behind a dialog or sheet: made inert while one is open.
+  const backgroundEls = [shellHeader, libraryMain, tabBar];
+
+  // ── Bottom sheets (Add, Sort & filter) ────────────────────
+  // Modal like the link dialog: the page behind is inert, Escape or a tap on
+  // the backdrop closes, and focus goes back to whatever opened it.
+  type Sheet = { open: (opener: HTMLElement | null, focusEl?: HTMLElement | null) => void; close: (restoreFocus?: boolean) => void };
+
+  function createSheet(sheet: HTMLElement, onClose?: () => void): Sheet {
+    let returnFocus: HTMLElement | null = null;
+    let opener: HTMLElement | null = null;
+
+    function open(from: HTMLElement | null, focusEl?: HTMLElement | null) {
+      closeMenu();
+      opener = from;
+      returnFocus = from ?? (document.activeElement as HTMLElement | null);
+      opener?.setAttribute('aria-expanded', 'true');
+      sheet.classList.remove('hidden');
+      backgroundEls.forEach((el) => el.setAttribute('inert', ''));
+      (focusEl ?? sheet.querySelector<HTMLElement>('button'))?.focus();
+    }
+
+    function close(restoreFocus = true) {
+      if (sheet.classList.contains('hidden')) return;
+      sheet.classList.add('hidden');
+      backgroundEls.forEach((el) => el.removeAttribute('inert'));
+      opener?.setAttribute('aria-expanded', 'false');
+      if (restoreFocus) returnFocus?.focus?.();
+      returnFocus = null;
+      opener = null;
+      onClose?.();
+    }
+
+    sheet.addEventListener('click', (e) => {
+      if (e.target === sheet) close();
+    });
+    sheet.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+      }
+    });
+    sheet.querySelectorAll('.sheet-close-btn').forEach((btn) => btn.addEventListener('click', () => close()));
+    return { open, close };
+  }
+
+  const addSheetCtl = createSheet(addSheet);
+  const sortFilterSheetCtl = createSheet(sortFilterSheet);
+
+  function openAddSheet(opener: HTMLElement) {
+    addSheetCtl.open(opener);
+  }
+
+  addFab.addEventListener('click', () => openAddSheet(addFab));
+  emptyAddBtn.addEventListener('click', () => openAddSheet(emptyAddBtn));
+  (addSheet.querySelector('.add-from-files') as HTMLButtonElement).addEventListener('click', () => {
+    addSheetCtl.close();
+    // Still inside the tap, so iOS lets the file picker open.
+    fileInput.click();
+  });
+  (addSheet.querySelector('.add-from-link') as HTMLButtonElement).addEventListener('click', () => {
+    addSheetCtl.close();
+    openDownloadDialog();
+  });
+
+  // ── Sort & filter ─────────────────────────────────────────
+  const radioGroups = Array.from(sortFilterSheet.querySelectorAll<HTMLElement>('[role="radiogroup"]'));
+
+  function radiosOf(group: HTMLElement): HTMLButtonElement[] {
+    return Array.from(group.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
+  }
+
+  function syncSortFilter() {
+    radioGroups.forEach((group) => {
+      const current = group.dataset.pref === 'sort' ? prefs.sort : prefs.filter;
+      radiosOf(group).forEach((radio) => {
+        const on = radio.dataset.value === current;
+        radio.setAttribute('aria-checked', String(on));
+        radio.tabIndex = on ? 0 : -1;
+      });
+    });
+    const filterLabel = FILTER_OPTIONS.find((o) => o.value === prefs.filter)?.label ?? '';
+    const filtered = prefs.filter !== DEFAULT_LIBRARY_PREFS.filter;
+    sortFilterState.hidden = !filtered;
+    sortFilterState.textContent = filtered ? filterLabel : '';
+  }
+
+  function choose(group: HTMLElement, radio: HTMLButtonElement) {
+    const value = radio.dataset.value;
+    if (group.dataset.pref === 'sort' && isLibrarySort(value)) prefs = { ...prefs, sort: value };
+    else if (group.dataset.pref === 'filter' && isLibraryFilter(value)) prefs = { ...prefs, filter: value };
+    else return;
+    savePrefs(prefs);
+    syncSortFilter();
+    void applyQuery();
+  }
+
+  radioGroups.forEach((group) => {
+    const radios = radiosOf(group);
+    radios.forEach((radio, index) => {
+      radio.addEventListener('click', () => choose(group, radio));
+      radio.addEventListener('keydown', (e) => {
+        let next = -1;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = (index + 1) % radios.length;
+        else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = (index - 1 + radios.length) % radios.length;
+        else if (e.key === 'Home') next = 0;
+        else if (e.key === 'End') next = radios.length - 1;
+        if (next < 0) return;
+        e.preventDefault();
+        choose(group, radios[next]);
+        radios[next].focus();
+      });
+    });
+  });
+
+  sortFilterBtn.addEventListener('click', () => {
+    const checked = sortFilterSheet.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]');
+    sortFilterSheetCtl.open(sortFilterBtn, checked);
+  });
+
+  // ── Add button ────────────────────────────────────────────
+  // Floats above the tab bar on My Library once there's a book (an empty shelf
+  // has its own "Add a PDF"). The list gets matching room at the end so the
+  // last card and the footer can scroll clear of it.
+  let shelfCount = 0;
+
+  function syncFab() {
+    const show = activeTab === 'library' && shelfCount > 0;
+    addFab.hidden = !show;
+    panelLibrary.classList.toggle('library-panel--with-fab', show);
+    if (!show) addSheetCtl.close(false);
+  }
+
+  const fabObserver =
+    typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => {
+          if (addFab.offsetHeight > 0) view.style.setProperty('--fab-h', `${addFab.offsetHeight}px`);
+        })
+      : null;
+  fabObserver?.observe(addFab);
+
+  setTab(activeTab);
 
   function openDownloadDialog() {
     dialogReturnFocus = document.activeElement as HTMLElement | null;
@@ -555,12 +729,12 @@ export function createLibraryView(
     }
 
     closeDownloadDialog();
-    const hideLoading = showLoading(view, 'Fetching your PDF…');
+    const hideLoading = showLoading(view, 'Adding to your library…');
     try {
       const { meta, savedToDisk } = await downloadAndAddPdf(url);
       await refresh();
       if (savedToDisk) {
-        showToast(`Saved and added “${meta.name}”`);
+        showToast(`Saved a copy and added “${meta.name}” to your library`);
       } else {
         showToast(`Added “${meta.name}” to your library`);
       }
@@ -577,11 +751,15 @@ export function createLibraryView(
     closeMenu();
     pdfList.innerHTML = '';
     // PDFs waiting out their Undo window are gone as far as people can tell.
-    const shelfCount = removals.visible(pdfs).length;
+    shelfCount = removals.visible(pdfs).length;
     pdfList.classList.toggle('pdf-list--animate', animate);
+    sortFilterBtn.hidden = !showsSortFilter(shelfCount);
+    if (sortFilterBtn.hidden) sortFilterSheetCtl.close(false);
+    syncSortFilter();
+    syncFab();
 
     const hasQuery = searchInput.value.trim().length > 0;
-    const hasFilter = filterSelect.value !== 'all';
+    const hasFilter = prefs.filter !== DEFAULT_LIBRARY_PREFS.filter;
 
     if (items.length === 0) {
       emptyState.classList.remove('hidden');
@@ -593,11 +771,10 @@ export function createLibraryView(
       emptyIllustration.innerHTML = pageBuddy(libraryEmpty ? 'happy' : 'curious', 128);
       emptyAddBtn.classList.toggle('hidden', !libraryEmpty);
       emptyFindBtn.classList.toggle('hidden', !libraryEmpty);
-      emptyLinkBtn.classList.toggle('hidden', !libraryEmpty);
       emptyClearBtn.classList.toggle('hidden', libraryEmpty);
       if (libraryEmpty) {
         emptyMessage.textContent = 'Your shelf is empty';
-        emptyHint.textContent = 'Add a PDF from your phone, or find a free classic online.';
+        emptyHint.textContent = 'Add a PDF from Files or a link, or find a free classic online.';
       } else if (hasQuery && !hasFilter) {
         emptyMessage.textContent = 'No titles match that';
         emptyHint.textContent = 'Check the spelling, or try a shorter word.';
@@ -760,19 +937,23 @@ export function createLibraryView(
   let renderSeq = 0;
 
   async function applyQuery(animate = false) {
-    const filter = filterSelect.value as PdfFilter;
-    const sort = sortSelect.value as PdfSort;
-    savePrefs({ filter, sort });
-
     const seq = ++renderSeq;
-    const [all, items] = await Promise.all([
-      getAllPdfs(),
-      queryPdfs({
-        query: searchInput.value,
-        filter,
-        sort,
-      }),
-    ]);
+    const all = await getAllPdfs();
+    if (seq !== renderSeq || tornDown) return;
+
+    // With six or fewer books "Sort & filter" is hidden, so go back to the
+    // defaults: a filter picked earlier mustn't quietly hide books.
+    const effective = effectiveLibraryPrefs(prefs, removals.visible(all).length);
+    if (!isDefaultLibraryPrefs(prefs) && isDefaultLibraryPrefs(effective)) {
+      prefs = effective;
+      savePrefs(prefs);
+    }
+
+    const items = await queryPdfs({
+      query: searchInput.value,
+      filter: prefs.filter,
+      sort: prefs.sort,
+    });
     if (seq !== renderSeq || tornDown) return;
     pdfs = all;
     renderList(removals.visible(items), animate);
@@ -783,19 +964,21 @@ export function createLibraryView(
   }
 
   searchInput.addEventListener('input', () => applyQuery());
-  filterSelect.addEventListener('change', () => applyQuery());
-  sortSelect.addEventListener('change', () => applyQuery());
 
   fileInput.addEventListener('change', async () => {
     if (!fileInput.files?.length) return;
-    const hideLoading = showLoading(view, 'Adding to your shelf…');
+    const hideLoading = showLoading(view, 'Adding to your library…');
     try {
       const added = await addPdfFiles(fileInput.files);
       await refresh();
       if (added.length === 0) {
         showToast('That wasn’t a PDF. Pick a file that ends in .pdf.', { isError: true });
       } else {
-        showToast(added.length === 1 ? `Added “${added[0].name}”` : `Added ${added.length} PDFs`);
+        showToast(
+          added.length === 1
+            ? `Added “${added[0].name}” to your library`
+            : `Added ${added.length} PDFs to your library`,
+        );
       }
     } catch (err) {
       showToast(friendlyError(err), { isError: true });
@@ -805,8 +988,6 @@ export function createLibraryView(
       fileInput.value = '';
     }
   });
-
-  downloadBtn.addEventListener('click', () => openDownloadDialog());
 
   downloadCancelBtn.addEventListener('click', () => closeDownloadDialog());
   downloadCloseBtn.addEventListener('click', () => closeDownloadDialog());
@@ -831,16 +1012,10 @@ export function createLibraryView(
   });
 
   emptyFindBtn.addEventListener('click', () => setTab('find', true));
-  emptyLinkBtn.addEventListener('click', () => openDownloadDialog());
-  emptyAddBtn.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      fileInput.click();
-    }
-  });
   emptyClearBtn.addEventListener('click', () => {
     searchInput.value = '';
-    filterSelect.value = 'all';
+    prefs = { ...prefs, filter: DEFAULT_LIBRARY_PREFS.filter };
+    savePrefs(prefs);
     void applyQuery();
   });
 

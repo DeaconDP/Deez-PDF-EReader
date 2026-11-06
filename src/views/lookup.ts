@@ -213,7 +213,7 @@ export function createLookupPanel(
   }
 
   async function addResult(result: LookupResult) {
-    const hideLoading = showLoading(loadingRoot, 'Adding to your shelf…');
+    const hideLoading = showLoading(loadingRoot, 'Adding to your library…');
     try {
       const meta = await addLookupResultToLibrary(result);
       addedIds.add(result.id);

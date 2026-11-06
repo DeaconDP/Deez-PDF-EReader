@@ -8,6 +8,13 @@
  */
 
 export const TOAST_DURATION_MS = 4000;
+
+/**
+ * Bottom chrome the toast must sit above: the library's tab bar and Add
+ * button (marked `data-toast-floor`) and the reader's bottom bar. With none
+ * on screen it rests on the bottom safe area (see `.toast` in app.css).
+ */
+const TOAST_FLOOR_SELECTOR = '[data-toast-floor], .reader-bottom-bar';
 export const TOAST_ERROR_DURATION_MS = 6000;
 
 export type ToastAction = {
@@ -144,6 +151,25 @@ export function createToaster(existing?: HTMLElement): Toaster {
     syncPause();
   });
 
+  /** Lift the toast above whatever bottom chrome is showing in its view. */
+  function place() {
+    const scope: ParentNode = element.closest('.view') ?? document;
+    const viewportBottom = window.innerHeight;
+    let floorTop = Infinity;
+    scope.querySelectorAll<HTMLElement>(TOAST_FLOOR_SELECTOR).forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      // Skip hidden chrome, and chrome slid off the bottom (the reader's hidden bar).
+      if (rect.height === 0 || rect.top >= viewportBottom - 1) return;
+      if (getComputedStyle(el).visibility === 'hidden') return;
+      floorTop = Math.min(floorTop, rect.top);
+    });
+    if (Number.isFinite(floorTop)) {
+      element.style.setProperty('--toast-floor', `${Math.round(viewportBottom - floorTop)}px`);
+    } else {
+      element.style.removeProperty('--toast-floor');
+    }
+  }
+
   function show(message: string, options: ToastOptions = {}): ToastHandle {
     if (current) close('replaced');
     const token = nextToken++;
@@ -168,6 +194,7 @@ export function createToaster(existing?: HTMLElement): Toaster {
       actionBtn.hidden = true;
     }
 
+    place();
     element.classList.remove('hidden');
     // A pointer still resting where the toast appears keeps it paused.
     hovered = element.matches(':hover');

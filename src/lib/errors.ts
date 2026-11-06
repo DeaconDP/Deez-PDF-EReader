@@ -61,7 +61,7 @@ const friendlyMessages: Record<ErrorCode, string> = {
   'ERR-LCH-001': 'Node.js is needed to run DeezPDF on this computer.',
   'ERR-LCH-002': 'DeezPDF couldn’t start its local server.',
   'ERR-LIB-001': 'That file couldn’t be read. Is it a PDF?',
-  'ERR-LIB-002': 'Adding a whole folder isn’t supported here. Try Add PDF instead.',
+  'ERR-LIB-002': 'Adding a whole folder isn’t supported here. Use Add, then pick the PDFs themselves.',
   'ERR-LIB-003': 'That link didn’t give us a PDF. Check it ends in .pdf and try again.',
   'ERR-LIB-004': 'Choosing a save location isn’t supported here.',
   'ERR-LKP-001': 'Search didn’t work this time. Check your connection and try again.',
@@ -76,7 +76,7 @@ const friendlyMessages: Record<ErrorCode, string> = {
 /** Specific validation messages that are already friendly, keyed by AppError detail. */
 const friendlyDetails: Record<string, string> = {
   'name cannot be empty': 'Give it a name first.',
-  'Save cancelled': 'Download cancelled.',
+  'Save cancelled': 'Cancelled, so nothing was added.',
   'URL is required': 'Paste a PDF link first.',
   'Invalid URL': 'That doesn’t look like a web link. It should start with https://',
   'Only http and https URLs are supported': 'That doesn’t look like a web link. It should start with https://',
