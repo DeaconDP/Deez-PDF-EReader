@@ -8,6 +8,7 @@ import { pageBuddy } from '../components/illustration';
 import { logger } from '../lib/logger';
 import { loadReaderPrefs, saveReaderPrefs, type TextTheme } from '../lib/reader-prefs';
 import { showLoading } from '../components/loading';
+import { createToaster } from '../components/toast';
 import { sym } from '../lib/symbols';
 
 export type ReaderInput =
@@ -200,14 +201,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
     readerTips.hidden = true;
   }
 
-  let toastTimer: ReturnType<typeof setTimeout> | undefined;
-  function showToast(message: string, isError = false): void {
-    clearTimeout(toastTimer);
-    toast.textContent = message;
-    toast.className = `toast ${isError ? 'toast-error' : 'toast-info'}`;
-    toast.setAttribute('role', isError ? 'alert' : 'status');
-    toastTimer = setTimeout(() => toast.classList.add('hidden'), isError ? 6000 : 4000);
-  }
+  const { show: showToast } = createToaster(toast);
 
   const renderer = new PdfRenderer(canvas, textPanel, canvasContainer, canvasWrapper);
   const previousTitle = document.title;
@@ -301,7 +295,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
       await callbacks.onAddToLibrary();
     } catch (err) {
       logger.logError('Failed to add preview to library', err);
-      showToast(friendlyError(err), true);
+      showToast(friendlyError(err), { isError: true });
       addLibraryBtn.disabled = false;
       addLibraryBtn.removeAttribute('aria-busy');
       if (label) label.textContent = 'Add';
@@ -670,7 +664,7 @@ export function createReaderView(input: ReaderInput, callbacks: ReaderCallbacks)
         await callbacks.onRemoveFromLibrary(pdfId);
       } catch (removeErr) {
         logger.logError('Failed to remove PDF from the error screen', removeErr);
-        showToast(friendlyError(removeErr), true);
+        showToast(friendlyError(removeErr), { isError: true });
         removeBtn.disabled = false;
         removeBtn.removeAttribute('aria-busy');
       }

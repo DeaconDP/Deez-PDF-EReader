@@ -19,6 +19,8 @@ import { createLookupPanel } from './lookup';
 import { pageBuddy } from '../components/illustration';
 import { onCreditClick } from '../components/debug-panel';
 import type { LookupResult } from '../lib/lookup/types';
+import { createToaster, type ToastHandle } from '../components/toast';
+import { createPendingRemovals } from '../lib/pending-removal';
 
 export type LibraryTab = 'library' | 'find';
 
@@ -31,6 +33,11 @@ export type LibraryOptions = {
   initialTab?: LibraryTab;
   /** Message to show once the library appears (e.g. after adding from a preview). */
   toast?: string;
+  /**
+   * Hide this PDF straight away and offer Undo (e.g. "Remove from library" on
+   * the reader's error screen). Its data is deleted when the Undo window ends.
+   */
+  removePdfId?: string;
 };
 
 const PREFS_KEY = 'deezpdf-library-prefs';
@@ -227,7 +234,6 @@ export function createLibraryView(
   const emptyState = view.querySelector('.empty-state') as HTMLElement;
   const emptyMessage = view.querySelector('.empty-message') as HTMLElement;
   const emptyHint = view.querySelector('.empty-hint') as HTMLElement;
-  const toast = view.querySelector('.toast') as HTMLElement;
   const emptyIllustration = view.querySelector('.empty-illustration') as HTMLElement;
   const emptyAddBtn = view.querySelector('.empty-add-btn') as HTMLElement;
   const emptyFindBtn = view.querySelector('.empty-find-btn') as HTMLButtonElement;
@@ -256,15 +262,210 @@ export function createLibraryView(
   );
   panelFind.appendChild(lookupPanel);
 
-  let toastTimer: ReturnType<typeof setTimeout> | undefined;
-  function showToast(message: string, isError = false) {
-    clearTimeout(toastTimer);
-    toast.textContent = message;
-    toast.className = `toast ${isError ? 'toast-error' : 'toast-info'}`;
-    toast.setAttribute('role', isError ? 'alert' : 'status');
-    toast.classList.remove('hidden');
-    toastTimer = setTimeout(() => toast.classList.add('hidden'), isError ? 6000 : 4000);
+  const toaster = createToaster(view.querySelector(':scope > .toast') as HTMLElement);
+  const showToast = toaster.show;
+  let tornDown = false;
+
+  // ── Remove with Undo ──────────────────────────────────────
+  // A removed PDF disappears at once; its stored copy is deleted only when
+  // the Undo toast goes away (times out, is replaced, the view is swapped or
+  // the app is backgrounded). If the app is killed in between, the PDF stays.
+  const removalNames = new Map<string, string>();
+  const undoToasts = new Map<string, ToastHandle>();
+  const removals = createPendingRemovals({
+    commit: removePdf,
+    onCommitted: (id) => {
+      removalNames.delete(id);
+      undoToasts.get(id)?.dismiss();
+      undoToasts.delete(id);
+      // No re-render: the card was already hidden, and the next read won't find it.
+    },
+    onCommitError: (id, err) => {
+      const name = removalNames.get(id);
+      removalNames.delete(id);
+      undoToasts.get(id)?.dismiss();
+      undoToasts.delete(id);
+      logger.logError('Failed to remove PDF', err);
+      if (tornDown) return;
+      void refresh();
+      showToast(
+        name ? `We couldn’t remove “${name}”, so it’s still on your shelf.` : friendlyError(err),
+        { isError: true },
+      );
+    },
+  });
+
+  function offerUndo(id: string, name: string | undefined) {
+    const handle = showToast(name ? `Removed “${name}”` : 'Removed it from your library', {
+      duration: null, // the removal's own clock decides when it goes
+      action: {
+        label: 'Undo',
+        accessibleLabel: name ? `Undo removing “${name}”` : 'Undo remove',
+        onAction: () => void undoRemoval(id),
+      },
+      onPauseChange: (paused) => (paused ? removals.pause(id) : removals.resume(id)),
+      onDismiss: (reason) => {
+        undoToasts.delete(id);
+        if (reason !== 'action') void removals.commit(id);
+      },
+    });
+    undoToasts.set(id, handle);
   }
+
+  async function removeWithUndo(pdf: PdfMeta) {
+    // Where focus goes once the card is gone: the next card, else the previous.
+    const ids = Array.from(pdfList.querySelectorAll<HTMLElement>('.pdf-card-info')).map((el) => el.dataset.id);
+    const index = ids.indexOf(pdf.id);
+    const nextFocusId = ids[index + 1] ?? ids[index - 1];
+
+    removalNames.set(pdf.id, pdf.name);
+    removals.remove(pdf.id);
+    await applyQuery();
+    if (tornDown) return;
+    focusAfterRemoval(nextFocusId);
+    offerUndo(pdf.id, pdf.name);
+  }
+
+  async function undoRemoval(id: string) {
+    const name = removalNames.get(id);
+    if (!removals.undo(id)) return;
+    removalNames.delete(id);
+    await applyQuery();
+    if (tornDown) return;
+    focusCard(id);
+    showToast(name ? `“${name}” is back on your shelf` : 'It’s back on your shelf');
+  }
+
+  function focusCard(id: string): boolean {
+    const target = Array.from(pdfList.querySelectorAll<HTMLElement>('.pdf-card-info')).find((el) => el.dataset.id === id);
+    target?.focus();
+    return Boolean(target);
+  }
+
+  function focusAfterRemoval(nextId: string | undefined) {
+    if (nextId && focusCard(nextId)) return;
+    if (!emptyState.classList.contains('hidden')) {
+      const action = Array.from(emptyState.querySelectorAll<HTMLElement>('.empty-actions .btn')).find(
+        (el) => !el.classList.contains('hidden'),
+      );
+      if (action) {
+        action.focus();
+        return;
+      }
+    }
+    searchInput.focus();
+  }
+
+  function commitRemovalsNow() {
+    // Dismissing an Undo toast commits its removal; flush catches the rest.
+    undoToasts.forEach((handle) => handle.dismiss());
+    void removals.flush();
+  }
+
+  function onVisibilityChange() {
+    if (document.visibilityState === 'hidden') commitRemovalsNow();
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('pagehide', commitRemovalsNow);
+
+  // ── Card "More" menus ─────────────────────────────────────
+  let menuSeq = 0;
+  let openMenu: { card: HTMLElement; button: HTMLButtonElement; menu: HTMLElement } | null = null;
+
+  function menuItems(menu: HTMLElement): HTMLButtonElement[] {
+    return Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+  }
+
+  function closeMenu(returnFocus = false) {
+    if (!openMenu) return;
+    const { card, button, menu } = openMenu;
+    openMenu = null;
+    menu.hidden = true;
+    button.setAttribute('aria-expanded', 'false');
+    card.classList.remove('pdf-card--menu-open');
+    if (returnFocus) button.focus();
+  }
+
+  function openCardMenu(card: HTMLElement, button: HTMLButtonElement, menu: HTMLElement, focus: 'first' | 'last') {
+    closeMenu();
+    openMenu = { card, button, menu };
+    menu.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    card.classList.add('pdf-card--menu-open');
+    const items = menuItems(menu);
+    items[focus === 'first' ? 0 : items.length - 1]?.focus();
+  }
+
+  function setupCardMenu(card: HTMLElement, pdf: PdfMeta) {
+    const button = card.querySelector('.pdf-more-btn') as HTMLButtonElement;
+    const menu = card.querySelector('.pdf-card-menu') as HTMLElement;
+
+    button.addEventListener('click', () => {
+      if (openMenu?.menu === menu) closeMenu();
+      else openCardMenu(card, button, menu, 'first');
+    });
+    button.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        openCardMenu(card, button, menu, e.key === 'ArrowDown' ? 'first' : 'last');
+      } else if (e.key === 'Escape' && openMenu?.menu === menu) {
+        e.preventDefault();
+        closeMenu(true);
+      }
+    });
+
+    menu.addEventListener('keydown', (e) => {
+      const items = menuItems(menu);
+      const index = items.indexOf(document.activeElement as HTMLButtonElement);
+      let next = -1;
+      if (e.key === 'ArrowDown') next = (index + 1) % items.length;
+      else if (e.key === 'ArrowUp') next = (index - 1 + items.length) % items.length;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = items.length - 1;
+      else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeMenu(true);
+        return;
+      } else if (e.key === 'Tab') {
+        closeMenu();
+        return;
+      }
+      if (next >= 0) {
+        e.preventDefault();
+        items[next].focus();
+      }
+    });
+    menu.addEventListener('focusout', (e) => {
+      const to = e.relatedTarget as Node | null;
+      if (openMenu?.menu === menu && to && !menu.contains(to) && to !== button) closeMenu();
+    });
+
+    card.querySelector('.rename-btn')?.addEventListener('click', () => {
+      closeMenu();
+      startRename(card, pdf);
+    });
+    card.querySelector('.remove-btn')?.addEventListener('click', () => {
+      closeMenu();
+      void removeWithUndo(pdf);
+    });
+  }
+
+  function onDocumentPointerDown(e: PointerEvent) {
+    if (!openMenu) return;
+    const target = e.target as Node;
+    if (!openMenu.menu.contains(target) && !openMenu.button.contains(target)) closeMenu();
+  }
+  document.addEventListener('pointerdown', onDocumentPointerDown);
+
+  view.addEventListener('remove', () => {
+    // The view is being swapped out: settle any removal still offering Undo.
+    commitRemovalsNow();
+    tornDown = true;
+    closeMenu();
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('pagehide', commitRemovalsNow);
+    document.removeEventListener('pointerdown', onDocumentPointerDown);
+  });
 
   function setTab(tab: LibraryTab, focusSearch = false) {
     activeTab = tab;
@@ -348,7 +549,7 @@ export function createLibraryView(
   async function submitDownload() {
     const url = downloadUrlInput.value.trim();
     if (!url) {
-      showToast('Paste a PDF link first.', true);
+      showToast('Paste a PDF link first.', { isError: true });
       downloadUrlInput.focus();
       return;
     }
@@ -365,7 +566,7 @@ export function createLibraryView(
       }
     } catch (err) {
       const cancelled = errorDetailOf(err) === 'Save cancelled';
-      showToast(friendlyError(err), !cancelled);
+      showToast(friendlyError(err), { isError: !cancelled });
       logger.logError('Failed to download PDF', err);
     } finally {
       hideLoading();
@@ -373,7 +574,10 @@ export function createLibraryView(
   }
 
   function renderList(items: PdfMeta[], animate = false) {
+    closeMenu();
     pdfList.innerHTML = '';
+    // PDFs waiting out their Undo window are gone as far as people can tell.
+    const shelfCount = removals.visible(pdfs).length;
     pdfList.classList.toggle('pdf-list--animate', animate);
 
     const hasQuery = searchInput.value.trim().length > 0;
@@ -384,7 +588,7 @@ export function createLibraryView(
       pdfList.classList.add('hidden');
       libraryCount.textContent = '';
 
-      const libraryEmpty = pdfs.length === 0;
+      const libraryEmpty = shelfCount === 0;
       panelLibrary.classList.toggle('library-panel--empty', libraryEmpty);
       emptyIllustration.innerHTML = pageBuddy(libraryEmpty ? 'happy' : 'curious', 128);
       emptyAddBtn.classList.toggle('hidden', !libraryEmpty);
@@ -410,8 +614,8 @@ export function createLibraryView(
     panelLibrary.classList.remove('library-panel--empty');
 
     const countLabel =
-      hasQuery || hasFilter ? `${items.length} of ${pdfs.length}` : `${items.length}`;
-    libraryCount.textContent = `${countLabel} PDF${pdfs.length === 1 ? '' : 's'}`;
+      hasQuery || hasFilter ? `${items.length} of ${shelfCount}` : `${items.length}`;
+    libraryCount.textContent = `${countLabel} PDF${shelfCount === 1 ? '' : 's'}`;
 
     items.forEach((pdf, index) => {
       const card = document.createElement('div');
@@ -419,6 +623,7 @@ export function createLibraryView(
       const finished = pdf.totalPages > 0 && pdf.currentPage >= pdf.totalPages;
       const percent = pdf.totalPages > 0 ? Math.round((pdf.currentPage / pdf.totalPages) * 100) : 0;
       const name = escapeHtml(pdf.name);
+      const menuId = ++menuSeq;
       let status = '';
       if (unread) {
         status = `<span class="pdf-badge pdf-badge-new">New</span>`;
@@ -442,12 +647,17 @@ export function createLibraryView(
           </div>
         </div>
         <div class="pdf-card-actions">
-          <button type="button" class="btn-icon rename-btn" data-id="${pdf.id}" aria-label="Rename ${name}">
-            <span class="icon" aria-hidden="true">${sym.edit}</span>
+          <button type="button" class="btn-icon pdf-more-btn" id="pdf-more-${menuId}" aria-haspopup="menu" aria-expanded="false" aria-controls="pdf-menu-${menuId}" aria-label="More options for ${name}">
+            <span class="icon" aria-hidden="true">${sym.more}</span>
           </button>
-          <button type="button" class="btn-icon btn-icon-danger remove-btn" data-id="${pdf.id}" aria-label="Remove ${name}">
-            <span class="icon" aria-hidden="true">${sym.remove}</span>
-          </button>
+          <div class="pdf-card-menu" id="pdf-menu-${menuId}" role="menu" aria-labelledby="pdf-more-${menuId}" hidden>
+            <button type="button" class="pdf-card-menu-item rename-btn" role="menuitem" tabindex="-1">
+              <span class="icon" aria-hidden="true">${sym.edit}</span><span>Rename</span>
+            </button>
+            <button type="button" class="pdf-card-menu-item pdf-card-menu-item-danger remove-btn" role="menuitem" tabindex="-1">
+              <span class="icon" aria-hidden="true">${sym.remove}</span><span>Remove</span>
+            </button>
+          </div>
         </div>
       `;
 
@@ -464,19 +674,7 @@ export function createLibraryView(
         }
       });
 
-      card.querySelector('.rename-btn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        startRename(card, pdf);
-      });
-
-      card.querySelector('.remove-btn')?.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (confirm(`Remove “${pdf.name}”? This deletes the copy saved on this device.`)) {
-          await removePdf(pdf.id);
-          await refresh();
-          showToast(`Removed “${pdf.name}”`);
-        }
-      });
+      setupCardMenu(card, pdf);
 
       pdfList.appendChild(card);
     });
@@ -501,7 +699,7 @@ export function createLibraryView(
 
     let finished = false;
 
-    async function finish(save: boolean) {
+    async function finish(save: boolean, fromKeyboard = false) {
       if (finished) return;
       finished = true;
 
@@ -512,17 +710,18 @@ export function createLibraryView(
         const nextName = input.value.trim();
         if (!nextName) {
           span.textContent = pdf.name;
-          showToast('Give it a name first.', true);
+          showToast('Give it a name first.', { isError: true });
         } else if (nextName !== pdf.name) {
           try {
             await renamePdf(pdf.id, nextName);
             span.textContent = nextName;
             showToast('Renamed');
             await refresh();
+            if (fromKeyboard) focusCard(pdf.id);
             return;
           } catch (err) {
             span.textContent = pdf.name;
-            showToast(friendlyError(err), true);
+            showToast(friendlyError(err), { isError: true });
             logger.logError('Failed to rename PDF', err);
           }
         } else {
@@ -535,16 +734,17 @@ export function createLibraryView(
       input.replaceWith(span);
       info?.setAttribute('role', 'button');
       info?.setAttribute('tabindex', '0');
+      if (fromKeyboard) info?.focus();
     }
 
     input.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter') {
         e.preventDefault();
-        void finish(true);
+        void finish(true, true);
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        void finish(false);
+        void finish(false, true);
       }
     });
 
@@ -555,21 +755,30 @@ export function createLibraryView(
     });
   }
 
+  // Reads can finish out of order (typing, a removal committing): only the
+  // latest one renders, so a stale read can't bring back a removed card.
+  let renderSeq = 0;
+
   async function applyQuery(animate = false) {
     const filter = filterSelect.value as PdfFilter;
     const sort = sortSelect.value as PdfSort;
     savePrefs({ filter, sort });
 
-    const items = await queryPdfs({
-      query: searchInput.value,
-      filter,
-      sort,
-    });
-    renderList(items, animate);
+    const seq = ++renderSeq;
+    const [all, items] = await Promise.all([
+      getAllPdfs(),
+      queryPdfs({
+        query: searchInput.value,
+        filter,
+        sort,
+      }),
+    ]);
+    if (seq !== renderSeq || tornDown) return;
+    pdfs = all;
+    renderList(removals.visible(items), animate);
   }
 
   async function refresh(animate = false) {
-    pdfs = await getAllPdfs();
     await applyQuery(animate);
   }
 
@@ -584,12 +793,12 @@ export function createLibraryView(
       const added = await addPdfFiles(fileInput.files);
       await refresh();
       if (added.length === 0) {
-        showToast('That wasn’t a PDF. Pick a file that ends in .pdf.', true);
+        showToast('That wasn’t a PDF. Pick a file that ends in .pdf.', { isError: true });
       } else {
         showToast(added.length === 1 ? `Added “${added[0].name}”` : `Added ${added.length} PDFs`);
       }
     } catch (err) {
-      showToast(friendlyError(err), true);
+      showToast(friendlyError(err), { isError: true });
       logger.logError('Failed to add PDFs', err);
     } finally {
       hideLoading();
@@ -635,7 +844,20 @@ export function createLibraryView(
     void applyQuery();
   });
 
-  refresh(true);
+  const removeOnOpen = options?.removePdfId;
+  if (removeOnOpen) removals.remove(removeOnOpen);
+  void refresh(true).then(() => {
+    if (!removeOnOpen || tornDown) return;
+    const meta = pdfs.find((p) => p.id === removeOnOpen);
+    if (meta) {
+      removalNames.set(meta.id, meta.name);
+      offerUndo(meta.id, meta.name);
+    } else {
+      // Already gone from storage: nothing to undo.
+      void removals.commit(removeOnOpen);
+      showToast('Removed it from your library');
+    }
+  });
   if (options?.toast) showToast(options.toast);
   return view;
 }

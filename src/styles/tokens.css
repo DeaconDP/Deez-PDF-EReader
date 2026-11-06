@@ -123,6 +123,8 @@
   --progress-h-reader: 4px;
   --dot-size: 14px;
   --content-max: 720px;
+  --menu-min-w: 11rem;         /* card "More" menu; grows with Dynamic Type */
+  --toast-max-w: 30rem;
 
   /* ── Motion (springs approximated for CSS) ─────────────── */
   --ease-snappy: cubic-bezier(0.34, 1.3, 0.64, 1);

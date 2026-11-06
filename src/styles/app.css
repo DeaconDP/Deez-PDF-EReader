@@ -482,6 +482,7 @@ button {
 }
 
 .pdf-card {
+  position: relative;
   display: flex;
   align-items: stretch;
   border: var(--border-w) solid var(--border);
@@ -636,10 +637,82 @@ button {
 }
 
 .pdf-card-actions {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: var(--space-2) var(--space-3);
+}
+
+/* Lift the card whose menu is open above its neighbours (cards that popped
+   in keep their own stacking context). */
+.pdf-card--menu-open {
+  z-index: 20;
+}
+
+.pdf-more-btn[aria-expanded='true'] {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.pdf-card-menu {
+  position: absolute;
+  top: calc(100% - var(--space-3));
+  right: var(--space-3);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: var(--menu-min-w);
+  max-width: calc(100vw - 2 * var(--page-pad));
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+  animation: fadeIn var(--dur-fast) var(--ease-gentle);
+}
+
+.pdf-card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  min-height: var(--input-h);
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: var(--weight-label);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pdf-card-menu-item .icon {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--text-muted);
+}
+
+.pdf-card-menu-item:hover,
+.pdf-card-menu-item:active {
+  background: var(--surface-sunken);
+}
+
+.pdf-card-menu-item:focus-visible {
+  outline-offset: -3px;
+}
+
+.pdf-card-menu-item-danger,
+.pdf-card-menu-item-danger .icon {
+  color: var(--danger-ink);
+}
+
+.pdf-card-menu-item-danger:hover,
+.pdf-card-menu-item-danger:active {
+  background: var(--danger-tint);
 }
 
 .pdf-name-input {
@@ -773,7 +846,7 @@ button {
   left: 50%;
   z-index: 300;
   width: max-content;
-  max-width: min(calc(100vw - 2 * var(--page-pad)), 30rem);
+  max-width: min(calc(100vw - 2 * var(--page-pad)), var(--toast-max-w));
   padding: var(--space-6) var(--space-8);
   border: var(--border-w) solid var(--primary);
   border-radius: var(--radius);
@@ -785,6 +858,41 @@ button {
   text-align: center;
   transform: translateX(-50%);
   animation: toastIn var(--dur-bouncy) var(--ease-bouncy);
+}
+
+.toast-has-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding-block: var(--space-3);
+  padding-inline-end: var(--space-3);
+  text-align: left;
+}
+
+.toast-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toast-action {
+  flex: none;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  margin-inline-start: auto;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  text-transform: uppercase;
+  transition: transform var(--dur-press) ease-out;
+}
+
+.toast-action:active {
+  transform: scale(var(--press-scale));
 }
 
 .toast-error {
@@ -1685,6 +1793,7 @@ button {
   .btn-small:active:not(:disabled),
   .reader-add-btn:active:not(:disabled),
   .lookup-filter-chip:active,
+  .toast-action:active,
   .pdf-card:has(.pdf-card-info:active) {
     transform: none;
   }

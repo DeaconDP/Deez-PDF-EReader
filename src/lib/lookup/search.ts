@@ -1,6 +1,7 @@
 import { searchArchiveOrg } from './archive-org';
 import { searchGutenberg } from './gutenberg';
 import { searchWebPdfs } from './web-search';
+import { WEB_SEARCH_ENABLED } from './sources';
 import type { LookupResult, LookupSearchOptions, LookupSearchOutcome } from './types';
 
 const MAX_RESULTS = 30;
@@ -37,10 +38,15 @@ export async function searchLookupPdfs(options: LookupSearchOptions): Promise<Lo
 
   const perSourceLimit = options.limit ?? 15;
 
+  // While web search is switched off (see sources.ts) its endpoint is never called.
+  const webSearch: ReturnType<typeof searchWebPdfs> = WEB_SEARCH_ENABLED
+    ? searchWebPdfs(query, perSourceLimit)
+    : Promise.resolve({ results: [] });
+
   const [archiveOutcome, gutenbergOutcome, webOutcome] = await Promise.allSettled([
     searchArchiveOrg(query, perSourceLimit),
     searchGutenberg(query, perSourceLimit),
-    searchWebPdfs(query, perSourceLimit),
+    webSearch,
   ]);
 
   const merged: LookupResult[] = [];
@@ -60,9 +66,8 @@ export async function searchLookupPdfs(options: LookupSearchOptions): Promise<Lo
   const deduped = dedupeResults(merged).slice(0, MAX_RESULTS);
 
   const webUnavailable =
-    webOutcome.status === 'fulfilled'
-      ? webOutcome.value.unavailable
-      : webOutcome.status === 'rejected';
+    WEB_SEARCH_ENABLED &&
+    (webOutcome.status === 'fulfilled' ? Boolean(webOutcome.value.unavailable) : webOutcome.status === 'rejected');
 
   const webMessage =
     webOutcome.status === 'fulfilled'

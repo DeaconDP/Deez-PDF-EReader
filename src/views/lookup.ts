@@ -7,6 +7,8 @@ import { cachePreviewBlob } from '../lib/lookup/preview-cache';
 import { logger } from '../lib/logger';
 import { showLoading } from '../components/loading';
 import { sym } from '../lib/symbols';
+import { createToaster } from '../components/toast';
+import { WEB_SEARCH_ENABLED, enabledSources, usableSourceFilter, type SourceFilter } from '../lib/lookup/sources';
 import type { PdfMeta } from '../lib/library';
 
 export type LookupPanelCallbacks = {
@@ -17,8 +19,6 @@ export type LookupPanelCallbacks = {
 export type LookupPanelOptions = {
   loadingRoot: HTMLElement;
 };
-
-type SourceFilter = 'all' | LookupSource;
 
 const SOURCE_LABELS: Record<LookupSource, string> = {
   archive: 'Internet Archive',
@@ -46,9 +46,9 @@ export function createLookupPanel(
 
     <div class="lookup-filters" role="group" aria-label="Where to look">
       <button type="button" class="lookup-filter-chip active" data-filter="all" aria-pressed="true">Everywhere</button>
-      <button type="button" class="lookup-filter-chip" data-filter="archive" aria-pressed="false">Internet Archive</button>
-      <button type="button" class="lookup-filter-chip" data-filter="gutenberg" aria-pressed="false">Gutenberg</button>
-      <button type="button" class="lookup-filter-chip" data-filter="web" aria-pressed="false">Web</button>
+      ${enabledSources()
+        .map((source) => `<button type="button" class="lookup-filter-chip" data-filter="${source}" aria-pressed="false">${SOURCE_LABELS[source]}</button>`)
+        .join('')}
     </div>
     <p class="lookup-disclaimer">Free and public-domain sources. Preview anything first; only add what you’re allowed to use.</p>
     <p class="lookup-notice hidden" role="status"></p>
@@ -94,24 +94,16 @@ export function createLookupPanel(
 
   // Restored from the last search so coming back from a preview keeps the results.
   let allResults: LookupResult[] = savedSearch.results;
-  let sourceFilter: SourceFilter = savedSearch.filter;
+  let sourceFilter: SourceFilter = usableSourceFilter(savedSearch.filter);
   const addedIds = savedSearch.addedIds;
   let lastQuery = savedSearch.query;
-  let lastNotice = savedSearch.notice;
+  let lastNotice = WEB_SEARCH_ENABLED ? savedSearch.notice : '';
 
   function remember() {
     savedSearch = { query: lastQuery, results: allResults, filter: sourceFilter, addedIds, notice: lastNotice };
   }
 
-  let toastTimer: ReturnType<typeof setTimeout> | undefined;
-  function showToast(message: string, isError = false) {
-    clearTimeout(toastTimer);
-    toast.textContent = message;
-    toast.className = `toast ${isError ? 'toast-error' : 'toast-info'}`;
-    toast.setAttribute('role', isError ? 'alert' : 'status');
-    toast.classList.remove('hidden');
-    toastTimer = setTimeout(() => toast.classList.add('hidden'), isError ? 6000 : 4000);
-  }
+  const { show: showToast } = createToaster(toast);
 
   function syncChips() {
     filterChips.forEach((chip) => {
@@ -122,7 +114,7 @@ export function createLookupPanel(
   }
 
   function setFilter(next: SourceFilter) {
-    sourceFilter = next;
+    sourceFilter = usableSourceFilter(next);
     syncChips();
     remember();
     renderResults();
@@ -213,7 +205,7 @@ export function createLookupPanel(
       cachePreviewBlob(result.id, blob);
       callbacks.onPreview(result, blob);
     } catch (err) {
-      showToast(downloadErrorMessage(err), true);
+      showToast(downloadErrorMessage(err), { isError: true });
       logger.logError('Failed to load preview', err);
     } finally {
       hideLoading();
@@ -230,7 +222,7 @@ export function createLookupPanel(
       showToast(`Added “${meta.name}” to your library`);
       callbacks.onAdded(meta);
     } catch (err) {
-      showToast(downloadErrorMessage(err), true);
+      showToast(downloadErrorMessage(err), { isError: true });
       logger.logError('Failed to add lookup result', err);
     } finally {
       hideLoading();
@@ -240,7 +232,7 @@ export function createLookupPanel(
   async function runSearch() {
     const query = queryInput.value.trim();
     if (!query) {
-      showToast('Type a title, author or topic first.', true);
+      showToast('Type a title, author or topic first.', { isError: true });
       queryInput.focus();
       return;
     }
@@ -253,14 +245,14 @@ export function createLookupPanel(
       const outcome = await searchLookupPdfs({ query });
       allResults = outcome.results;
 
-      if (outcome.webSearchUnavailable) {
+      if (WEB_SEARCH_ENABLED && outcome.webSearchUnavailable) {
         // Keep the technical reason in the log; show people what it means for them.
         logger.info(`Web search unavailable: ${outcome.webSearchMessage ?? 'unknown reason'}`);
         lastNotice = 'Web results aren’t available right now, so these come from Internet Archive and Gutenberg.';
       }
       remember();
 
-      if (allResults.length === 0 && !outcome.webSearchUnavailable) {
+      if (allResults.length === 0 && !lastNotice) {
         throw new AppError(ErrorCodes.LKP_002);
       }
 
@@ -271,7 +263,7 @@ export function createLookupPanel(
         remember();
         renderResults();
       } else {
-        showToast(friendlyError(err instanceof AppError ? err : new AppError(ErrorCodes.LKP_001)), true);
+        showToast(friendlyError(err instanceof AppError ? err : new AppError(ErrorCodes.LKP_001)), { isError: true });
         logger.logError('Lookup search failed', err);
       }
     } finally {
