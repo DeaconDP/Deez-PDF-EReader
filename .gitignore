@@ -14,6 +14,7 @@ DeezPDFReader.exe
 *.local
 
 # Signing keys & credentials
+*.p8
 *.p12
 *.pem
 *.cer
