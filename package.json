@@ -1,6 +1,6 @@
 {
   "name": "deezpdf-reader",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A friendly, offline PDF reader PWA with a local library",
   "type": "module",
   "scripts": {
