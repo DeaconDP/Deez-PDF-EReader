@@ -7,3 +7,7 @@ export function isNativeApp(): boolean {
 export function isIOS(): boolean {
   return Capacitor.getPlatform() === 'ios';
 }
+
+export function isAndroid(): boolean {
+  return Capacitor.getPlatform() === 'android';
+}

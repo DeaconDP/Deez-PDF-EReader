@@ -27,3 +27,6 @@ DeezPDFReader.exe
 ios/App/**/xcuserdata/
 ios/App/Pods/
 *.xcuserstate
+
+# Android signing (upload key lives in ~/.android-keys, password in Keychain)
+keystore.properties

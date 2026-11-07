@@ -1,0 +1,87 @@
+apply plugin: 'com.android.application'
+
+// Upload-key signing. Secrets never live in the repo: android/keystore.properties
+// (gitignored) gives storeFile + keyAlias, and the password comes from the macOS
+// Keychain (service "deezpdf-upload-keystore") or the DEEZPDF_KEYSTORE_PASSWORD env var.
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def keystorePassword = {
+    def fromEnv = System.getenv('DEEZPDF_KEYSTORE_PASSWORD')
+    if (fromEnv) return fromEnv
+    if (keystoreProps['keychainService']) {
+        def proc = ['security', 'find-generic-password', '-s', keystoreProps['keychainService'], '-a', keystoreProps['keyAlias'], '-w'].execute()
+        def out = proc.text.trim()
+        if (proc.waitFor() == 0 && out) return out
+    }
+    return null
+}
+
+android {
+    namespace = "online.deac.deezpdf"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "online.deac.deezpdf"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 16
+        versionName "1.1"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (keystoreProps['storeFile']) {
+                def password = keystorePassword()
+                storeFile file(keystoreProps['storeFile'])
+                keyAlias keystoreProps['keyAlias']
+                storePassword password
+                keyPassword password
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (keystoreProps['storeFile']) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

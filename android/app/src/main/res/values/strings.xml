@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DeezPDF</string>
+    <string name="title_activity_main">DeezPDF</string>
+    <string name="package_name">online.deac.deezpdf</string>
+    <string name="custom_url_scheme">online.deac.deezpdf</string>
+</resources>
