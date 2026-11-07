@@ -1,0 +1,1 @@
+DeezPDF is a PDF reader with a local library. Read PDFs page-by-page like a Kindle, with swipe navigation and automatic progress saving. All your PDFs stay on your device — nothing is uploaded anywhere. Created by deac.online @ worldbuild.io

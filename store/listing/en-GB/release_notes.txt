@@ -1,0 +1,1 @@
+A brand-new look that's friendlier and easier to read. Tap the page to hide everything but your book. Removed something by mistake? Undo it. Fixed a bug where some PDFs wouldn't reopen, plus lots of accessibility improvements.

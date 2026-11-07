@@ -27,3 +27,7 @@ DeezPDFReader.exe
 ios/App/**/xcuserdata/
 ios/App/Pods/
 *.xcuserstate
+
+# storekit-ship: App Review contact details (repo is public)
+store/app.toml
+build/storekit-ship/
