@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 // Upload-key signing. Secrets never live in the repo: android/keystore.properties
 // (gitignored) gives storeFile + keyAlias, and the password comes from the macOS
-// Keychain (service "deezpdf-upload-keystore") or the DEEZPDF_KEYSTORE_PASSWORD env var.
+// Keychain (service named by keychainService) or the DEEZPDF_KEYSTORE_PASSWORD env var.
 def keystorePropsFile = rootProject.file('keystore.properties')
 def keystoreProps = new Properties()
 if (keystorePropsFile.exists()) {
@@ -11,12 +11,24 @@ if (keystorePropsFile.exists()) {
 def keystorePassword = {
     def fromEnv = System.getenv('DEEZPDF_KEYSTORE_PASSWORD')
     if (fromEnv) return fromEnv
-    if (keystoreProps['keychainService']) {
-        def proc = ['security', 'find-generic-password', '-s', keystoreProps['keychainService'], '-a', keystoreProps['keyAlias'], '-w'].execute()
-        def out = proc.text.trim()
-        if (proc.waitFor() == 0 && out) return out
+    def isMac = System.getProperty('os.name').toLowerCase().contains('mac')
+    if (isMac && keystoreProps['keychainService']) {
+        try {
+            def proc = ['security', 'find-generic-password', '-s', keystoreProps['keychainService'], '-a', keystoreProps['keyAlias'], '-w'].execute()
+            def out = proc.text.trim()
+            if (proc.waitFor() == 0 && out) return out
+        } catch (Exception ignored) {
+        }
     }
-    return null
+    throw new GradleException("DeezPDF release signing: no upload-key password. Set DEEZPDF_KEYSTORE_PASSWORD, or add it to the macOS Keychain (service '${keystoreProps['keychainService']}', account '${keystoreProps['keyAlias']}').")
+}
+
+// Release builds must be signed with the upload key (Play rejects unsigned bundles).
+// The Keychain is only read when a release task was requested, so debug builds and
+// IDE sync never prompt and work without keystore.properties.
+def releaseRequested = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+if (releaseRequested && !keystoreProps['storeFile']) {
+    throw new GradleException("DeezPDF release signing: android/keystore.properties is missing (storeFile, keyAlias, keychainService). See docs/play-store/listing.md.")
 }
 
 android {
@@ -38,11 +50,13 @@ android {
     signingConfigs {
         release {
             if (keystoreProps['storeFile']) {
-                def password = keystorePassword()
                 storeFile file(keystoreProps['storeFile'])
                 keyAlias keystoreProps['keyAlias']
-                storePassword password
-                keyPassword password
+                if (releaseRequested) {
+                    def password = keystorePassword()
+                    storePassword password
+                    keyPassword password
+                }
             }
         }
     }

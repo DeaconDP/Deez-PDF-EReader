@@ -28,5 +28,5 @@ ios/App/**/xcuserdata/
 ios/App/Pods/
 *.xcuserstate
 
-# Android signing (upload key lives in ~/.android-keys, password in Keychain)
+# Android signing (upload key and its password live outside the repo)
 keystore.properties
