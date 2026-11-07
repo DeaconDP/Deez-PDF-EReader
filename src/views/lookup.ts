@@ -1,11 +1,14 @@
 import { addLookupResultToLibrary } from '../lib/library';
 import { fetchPdfFromUrl } from '../lib/download';
-import { AppError, ErrorCodes, formatError } from '../lib/errors';
+import { AppError, ErrorCodes, errorCodeOf, errorDetailOf, escapeHtml, friendlyError } from '../lib/errors';
+import { pageBuddy } from '../components/illustration';
 import { searchLookupPdfs, type LookupResult, type LookupSource } from '../lib/lookup/search';
 import { cachePreviewBlob } from '../lib/lookup/preview-cache';
 import { logger } from '../lib/logger';
 import { showLoading } from '../components/loading';
 import { sym } from '../lib/symbols';
+import type { Toaster } from '../components/toast';
+import { WEB_SEARCH_ENABLED, enabledSources, usableSourceFilter, type SourceFilter } from '../lib/lookup/sources';
 import type { PdfMeta } from '../lib/library';
 
 export type LookupPanelCallbacks = {
@@ -15,12 +18,12 @@ export type LookupPanelCallbacks = {
 
 export type LookupPanelOptions = {
   loadingRoot: HTMLElement;
+  /** The host view's toaster: one toast per view, so messages never overlap. */
+  toaster: Toaster;
 };
 
-type SourceFilter = 'all' | LookupSource;
-
 const SOURCE_LABELS: Record<LookupSource, string> = {
-  archive: 'Archive',
+  archive: 'Internet Archive',
   gutenberg: 'Gutenberg',
   web: 'Web',
 };
@@ -33,77 +36,86 @@ export function createLookupPanel(
   panel.className = 'lookup-panel';
 
   panel.innerHTML = `
-    <div class="lookup-search-bar">
+    <form class="lookup-search-bar" role="search">
       <div class="search-box">
-        <span class="search-icon icon" aria-hidden="true">${sym.lookup}</span>
-        <input type="search" class="lookup-query-input" placeholder="Book title, author, or topic…" aria-label="Search for PDFs" />
+        <span class="search-icon icon" aria-hidden="true">${sym.search}</span>
+        <input type="search" class="lookup-query-input" placeholder="Title, author or topic" aria-label="Search free books and PDFs" enterkeyhint="search" />
       </div>
-      <button type="button" class="btn btn-primary lookup-search-btn">
-        <span class="icon" aria-hidden="true">${sym.search}</span>
+      <button type="submit" class="btn btn-primary lookup-search-btn">
         <span class="btn-label">Search</span>
       </button>
-    </div>
+    </form>
 
-    <div class="lookup-filters" role="group" aria-label="Filter by source">
-      <button type="button" class="lookup-filter-chip active" data-filter="all">All</button>
-      <button type="button" class="lookup-filter-chip" data-filter="archive">Archive</button>
-      <button type="button" class="lookup-filter-chip" data-filter="gutenberg">Gutenberg</button>
-      <button type="button" class="lookup-filter-chip" data-filter="web">Web</button>
+    <div class="lookup-filters" role="group" aria-label="Where to look">
+      <button type="button" class="lookup-filter-chip active" data-filter="all" aria-pressed="true">Everywhere</button>
+      ${enabledSources()
+        .map((source) => `<button type="button" class="lookup-filter-chip" data-filter="${source}" aria-pressed="false">${SOURCE_LABELS[source]}</button>`)
+        .join('')}
     </div>
-    <p class="feature-hint feature-hint--compact">Archive = Internet Archive · Gutenberg = free classics · Web = broader search.</p>
-
-    <p class="lookup-disclaimer">Only download PDFs you have the right to use.</p>
-    <p class="feature-hint">Preview opens without saving. Add downloads a copy to your library.</p>
-    <p class="lookup-notice hidden" aria-live="polite"></p>
+    <p class="lookup-disclaimer">Free and public-domain sources. Preview anything first; only add what you’re allowed to use.</p>
+    <p class="lookup-notice hidden" role="status"></p>
 
     <div class="content-scroll lookup-content">
-      <div class="lookup-results pdf-list hidden"></div>
+      <div class="lookup-results pdf-list hidden" role="list" aria-label="Search results"></div>
 
       <div class="lookup-empty empty-state hidden">
-        <div class="empty-icon icon icon-glyph" aria-hidden="true">${sym.empty}</div>
-        <p class="empty-message">Search for a book or author to find PDFs</p>
-        <p class="empty-hint">Try a title, author, or topic.</p>
+        <div class="empty-illustration" aria-hidden="true">${pageBuddy('reading', 128)}</div>
+        <p class="empty-message">What do you feel like reading?</p>
+        <p class="empty-hint">Search thousands of free classics, papers and public-domain books.</p>
       </div>
 
       <div class="lookup-no-results empty-state hidden">
-        <div class="empty-icon icon icon-glyph" aria-hidden="true">${sym.empty}</div>
+        <div class="empty-illustration" aria-hidden="true">${pageBuddy('curious', 128)}</div>
         <p class="empty-message">No PDFs found</p>
-        <p class="empty-hint">Try a different search term or source filter</p>
-        <button type="button" class="btn btn-secondary lookup-retry-btn">Search again</button>
+        <p class="empty-hint">Try fewer words, or an author’s surname.</p>
+        <button type="button" class="btn btn-secondary lookup-retry-btn">
+          <span class="btn-label">Try another search</span>
+        </button>
       </div>
     </div>
-
-    <div class="toast hidden"></div>
   `;
 
   const queryInput = panel.querySelector('.lookup-query-input') as HTMLInputElement;
-  const searchBtn = panel.querySelector('.lookup-search-btn') as HTMLButtonElement;
+  const searchForm = panel.querySelector('.lookup-search-bar') as HTMLFormElement;
   const filterChips = panel.querySelectorAll('.lookup-filter-chip') as NodeListOf<HTMLButtonElement>;
   const resultsList = panel.querySelector('.lookup-results') as HTMLElement;
   const emptyState = panel.querySelector('.lookup-empty') as HTMLElement;
   const noResultsState = panel.querySelector('.lookup-no-results') as HTMLElement;
   const retryBtn = panel.querySelector('.lookup-retry-btn') as HTMLButtonElement;
+  const retryLabel = retryBtn.querySelector('.btn-label') as HTMLElement;
+  const noResultsMessage = panel.querySelector('.lookup-no-results .empty-message') as HTMLElement;
+  const noResultsHint = panel.querySelector('.lookup-no-results .empty-hint') as HTMLElement;
+  function chipLabel(filter: SourceFilter): string {
+    return filter === 'all' ? 'any source' : SOURCE_LABELS[filter];
+  }
   const noticeEl = panel.querySelector('.lookup-notice') as HTMLElement;
-  const toast = panel.querySelector('.toast') as HTMLElement;
   const loadingRoot = options.loadingRoot;
 
-  let allResults: LookupResult[] = [];
-  let sourceFilter: SourceFilter = 'all';
-  let addedIds = new Set<string>();
-  let lastQuery = '';
+  // Restored from the last search so coming back from a preview keeps the results.
+  let allResults: LookupResult[] = savedSearch.results;
+  let sourceFilter: SourceFilter = usableSourceFilter(savedSearch.filter);
+  const addedIds = savedSearch.addedIds;
+  let lastQuery = savedSearch.query;
+  let lastNotice = WEB_SEARCH_ENABLED ? savedSearch.notice : '';
 
-  function showToast(message: string, isError = false) {
-    toast.textContent = message;
-    toast.className = `toast ${isError ? 'toast-error' : 'toast-info'}`;
-    toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 4000);
+  function remember() {
+    savedSearch = { query: lastQuery, results: allResults, filter: sourceFilter, addedIds, notice: lastNotice };
+  }
+
+  const showToast = options.toaster.show;
+
+  function syncChips() {
+    filterChips.forEach((chip) => {
+      const on = chip.dataset.filter === sourceFilter;
+      chip.classList.toggle('active', on);
+      chip.setAttribute('aria-pressed', String(on));
+    });
   }
 
   function setFilter(next: SourceFilter) {
-    sourceFilter = next;
-    filterChips.forEach((chip) => {
-      chip.classList.toggle('active', chip.dataset.filter === next);
-    });
+    sourceFilter = usableSourceFilter(next);
+    syncChips();
+    remember();
     renderResults();
   }
 
@@ -113,7 +125,8 @@ export function createLookupPanel(
   }
 
   function updateVisibility(hasSearched: boolean, items: LookupResult[]) {
-    noticeEl.classList.add('hidden');
+    noticeEl.textContent = lastNotice;
+    noticeEl.classList.toggle('hidden', !lastNotice);
     emptyState.classList.add('hidden');
     noResultsState.classList.add('hidden');
     resultsList.classList.add('hidden');
@@ -124,6 +137,12 @@ export function createLookupPanel(
     }
 
     if (items.length === 0) {
+      const hiddenByFilter = allResults.length > 0;
+      noResultsMessage.textContent = hiddenByFilter ? `Nothing from ${chipLabel(sourceFilter)}` : 'No PDFs found';
+      noResultsHint.textContent = hiddenByFilter
+        ? `${allResults.length} result${allResults.length === 1 ? '' : 's'} came from other sources.`
+        : 'Try fewer words, or an author’s surname.';
+      retryLabel.textContent = hiddenByFilter ? 'Show all sources' : 'Try another search';
       noResultsState.classList.remove('hidden');
       return;
     }
@@ -139,13 +158,14 @@ export function createLookupPanel(
     items.forEach((result, index) => {
       const card = document.createElement('div');
       card.className = 'lookup-card';
-      card.style.setProperty('--stagger', String(index));
+      card.style.setProperty('--stagger', String(Math.min(index, 8)));
       const authors = result.authors?.join(', ');
       const isAdded = addedIds.has(result.id);
 
       const title = escapeHtml(result.title);
       const addLabel = isAdded ? 'Added to library' : 'Add to library';
 
+      card.setAttribute('role', 'listitem');
       card.innerHTML = `
         <div class="lookup-card-body">
           <p class="lookup-card-title">${title}</p>
@@ -156,11 +176,11 @@ export function createLookupPanel(
           ${result.snippet ? `<p class="lookup-snippet">${escapeHtml(result.snippet)}</p>` : ''}
         </div>
         <div class="lookup-card-actions">
-          <button type="button" class="btn-icon lookup-preview-btn" data-id="${escapeHtml(result.id)}" aria-label="Preview ${title}" title="Preview">
-            <span class="icon icon-glyph" aria-hidden="true">${sym.preview}</span>
+          <button type="button" class="btn btn-secondary btn-small lookup-preview-btn" data-id="${escapeHtml(result.id)}" aria-label="Preview ${title}">
+            <span class="icon" aria-hidden="true">${sym.preview}</span><span class="btn-label">Preview</span>
           </button>
-          <button type="button" class="btn-icon lookup-add-btn" data-id="${escapeHtml(result.id)}" aria-label="${addLabel}: ${title}" title="${addLabel}" ${isAdded ? 'disabled' : ''}>
-            <span class="icon icon-glyph" aria-hidden="true">${sym.add}</span>
+          <button type="button" class="btn ${isAdded ? 'btn-done' : 'btn-primary'} btn-small lookup-add-btn" data-id="${escapeHtml(result.id)}" aria-label="${addLabel}: ${title}" ${isAdded ? 'disabled' : ''}>
+            <span class="icon" aria-hidden="true">${isAdded ? sym.check : sym.add}</span><span class="btn-label">${isAdded ? 'Added' : 'Add'}</span>
           </button>
         </div>
       `;
@@ -178,13 +198,13 @@ export function createLookupPanel(
   }
 
   async function previewResult(result: LookupResult) {
-    const hideLoading = showLoading(loadingRoot, 'Loading preview...');
+    const hideLoading = showLoading(loadingRoot, 'Fetching the preview…');
     try {
       const { blob } = await fetchPdfFromUrl(result.pdfUrl);
       cachePreviewBlob(result.id, blob);
       callbacks.onPreview(result, blob);
     } catch (err) {
-      showToast(formatError(err), true);
+      showToast(downloadErrorMessage(err), { isError: true });
       logger.logError('Failed to load preview', err);
     } finally {
       hideLoading();
@@ -192,15 +212,16 @@ export function createLookupPanel(
   }
 
   async function addResult(result: LookupResult) {
-    const hideLoading = showLoading(loadingRoot, 'Adding to library...');
+    const hideLoading = showLoading(loadingRoot, 'Adding to your library…');
     try {
       const meta = await addLookupResultToLibrary(result);
       addedIds.add(result.id);
+      remember();
       renderResults();
-      showToast(`Added "${meta.name}" to library`);
+      showToast(`Added “${meta.name}” to your library`);
       callbacks.onAdded(meta);
     } catch (err) {
-      showToast(formatError(err), true);
+      showToast(downloadErrorMessage(err), { isError: true });
       logger.logError('Failed to add lookup result', err);
     } finally {
       hideLoading();
@@ -210,23 +231,27 @@ export function createLookupPanel(
   async function runSearch() {
     const query = queryInput.value.trim();
     if (!query) {
-      showToast('Enter a search term', true);
+      showToast('Type a title, author or topic first.', { isError: true });
       queryInput.focus();
       return;
     }
 
     lastQuery = query;
-    const hideLoading = showLoading(loadingRoot, 'Searching…');
+    lastNotice = '';
+    queryInput.blur();
+    const hideLoading = showLoading(loadingRoot, 'Looking through the stacks…');
     try {
       const outcome = await searchLookupPdfs({ query });
       allResults = outcome.results;
 
-      if (outcome.webSearchUnavailable && outcome.webSearchMessage) {
-        noticeEl.textContent = outcome.webSearchMessage;
-        noticeEl.classList.remove('hidden');
+      if (WEB_SEARCH_ENABLED && outcome.webSearchUnavailable) {
+        // Keep the technical reason in the log; show people what it means for them.
+        logger.info(`Web search unavailable: ${outcome.webSearchMessage ?? 'unknown reason'}`);
+        lastNotice = 'Web results aren’t available right now, so these come from Internet Archive and Gutenberg.';
       }
+      remember();
 
-      if (allResults.length === 0 && !outcome.webSearchUnavailable) {
+      if (allResults.length === 0 && !lastNotice) {
         throw new AppError(ErrorCodes.LKP_002);
       }
 
@@ -234,10 +259,10 @@ export function createLookupPanel(
     } catch (err) {
       if (err instanceof AppError && err.code === ErrorCodes.LKP_002) {
         allResults = [];
+        remember();
         renderResults();
-        showToast(formatError(err), true);
       } else {
-        showToast(formatError(err instanceof AppError ? err : new AppError(ErrorCodes.LKP_001)), true);
+        showToast(friendlyError(err instanceof AppError ? err : new AppError(ErrorCodes.LKP_001)), { isError: true });
         logger.logError('Lookup search failed', err);
       }
     } finally {
@@ -245,17 +270,17 @@ export function createLookupPanel(
     }
   }
 
-  searchBtn.addEventListener('click', () => void runSearch());
-  retryBtn.addEventListener('click', () => {
-    queryInput.focus();
+  searchForm.addEventListener('submit', (e) => {
+    e.preventDefault();
     void runSearch();
   });
-
-  queryInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      void runSearch();
+  retryBtn.addEventListener('click', () => {
+    if (allResults.length > 0 && sourceFilter !== 'all') {
+      setFilter('all');
+      return;
     }
+    queryInput.select();
+    queryInput.focus();
   });
 
   filterChips.forEach((chip) => {
@@ -264,11 +289,25 @@ export function createLookupPanel(
     });
   });
 
+  queryInput.value = lastQuery;
+  syncChips();
+  renderResults();
+
   return panel;
 }
 
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+type SavedSearch = {
+  query: string;
+  results: LookupResult[];
+  filter: SourceFilter;
+  addedIds: Set<string>;
+  notice: string;
+};
+
+let savedSearch: SavedSearch = { query: '', results: [], filter: 'all', addedIds: new Set(), notice: '' };
+
+function downloadErrorMessage(err: unknown): string {
+  const restricted = errorCodeOf(err) === ErrorCodes.LIB_003 && /^HTTP 40[13]\b/.test(errorDetailOf(err));
+  return restricted ? 'This one isn’t free to download. Try another result.' : friendlyError(err);
 }
+

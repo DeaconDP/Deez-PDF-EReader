@@ -7,8 +7,8 @@ export async function initNativeShell(): Promise<void> {
   if (!isNativeApp()) return;
 
   try {
-    await StatusBar.setStyle({ style: Style.Dark });
-    await StatusBar.setBackgroundColor({ color: '#060810' });
+    // Follow the system appearance; the web UI has light and dark themes.
+    await StatusBar.setStyle({ style: Style.Default });
     await SplashScreen.hide();
     logger.info('Native shell initialized');
   } catch (err) {

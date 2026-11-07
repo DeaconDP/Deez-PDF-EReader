@@ -1,0 +1,2037 @@
+/*
+ * DeezPDF components. Colours, radii, sizes and durations come from
+ * tokens.css. Only accessibility utilities (visually-hidden, outline offsets),
+ * keyframe offsets, SVG coordinates and the one breakpoint are literal. Classes toggled by JS (.hidden, .active,
+ * .rendered, .zoomed, .text-mode, .text-theme-*, .reader-active,
+ * .view-enter, .pdf-card-unread, .toast-*) keep their meaning.
+ */
+
+/* ── Base ─────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* iOS Dynamic Type: the root size follows the user's text-size setting */
+  font: -apple-system-body;
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  font-weight: var(--weight-body);
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--bg-soft);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+[hidden],
+.hidden {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.svg-icon {
+  width: 100%;
+  height: 100%;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+#app.reader-active {
+  max-width: none;
+}
+
+/* The tab bar belongs to the library view; never show it over the reader. */
+#app.reader-active .tab-bar {
+  display: none;
+}
+
+.view {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.view-enter {
+  animation: viewIn var(--dur-snappy) var(--ease-gentle);
+}
+
+/* ── Buttons: chunky, with a solid lip they sink into ───────── */
+.btn {
+  --btn-bg: var(--surface);
+  --btn-ink: var(--primary-ink);
+  --btn-edge: var(--border);
+  --btn-lip: var(--border-lip);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-height: var(--button-h);
+  margin-bottom: var(--lip);
+  padding: var(--space-4) var(--space-9);
+  border: var(--border-w) solid var(--btn-edge);
+  border-radius: var(--radius);
+  background: var(--btn-bg);
+  color: var(--btn-ink);
+  box-shadow: 0 var(--lip) 0 var(--btn-lip);
+  font-size: var(--text-body);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  line-height: 1.15;
+  text-align: center;
+  text-transform: uppercase;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    transform var(--dur-press) ease-out,
+    box-shadow var(--dur-press) ease-out,
+    background-color var(--dur-fast) ease-out;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(var(--lip));
+  box-shadow: 0 0 0 var(--btn-lip);
+}
+
+.btn .icon {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.btn-primary {
+  --btn-bg: var(--primary);
+  --btn-ink: var(--on-primary);
+  --btn-edge: var(--primary);
+  --btn-lip: var(--primary-lip);
+}
+
+.btn-secondary {
+  --btn-bg: var(--surface);
+  --btn-ink: var(--primary-ink);
+}
+
+.btn-ghost {
+  --btn-bg: transparent;
+  --btn-ink: var(--text-muted);
+  --btn-edge: transparent;
+  --btn-lip: transparent;
+}
+
+.btn-done,
+.btn-done:disabled {
+  --btn-bg: var(--success-tint);
+  --btn-ink: var(--success-ink);
+  --btn-edge: var(--success-tint);
+  --btn-lip: transparent;
+  cursor: default;
+}
+
+.btn:disabled:not(.btn-done) {
+  --btn-bg: var(--locked);
+  --btn-ink: var(--locked-ink);
+  --btn-edge: var(--locked);
+  --btn-lip: var(--locked-lip);
+  cursor: default;
+}
+
+.btn-small {
+  min-height: var(--tap-min);
+  padding: var(--space-3) var(--space-7);
+  font-size: var(--text-small);
+  margin-bottom: var(--lip-sm);
+  box-shadow: 0 var(--lip-sm) 0 var(--btn-lip);
+}
+
+.btn-small:active:not(:disabled) {
+  transform: translateY(var(--lip-sm));
+}
+
+.btn-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  transition:
+    transform var(--dur-press) ease-out,
+    background-color var(--dur-fast) ease-out,
+    color var(--dur-fast) ease-out;
+}
+
+.btn-icon .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.btn-icon:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+  background: var(--surface-sunken);
+}
+
+.btn-icon.active,
+.btn-icon[aria-pressed='true'] {
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+
+.btn-icon-danger:active:not(:disabled) {
+  background: var(--danger-tint);
+  color: var(--danger-ink);
+}
+
+/* ── Inputs ───────────────────────────────────────────────── */
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: var(--space-7);
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input,
+.lookup-query-input,
+.download-url-input,
+.pdf-name-input {
+  width: 100%;
+  min-height: var(--input-h);
+  padding: var(--space-4) var(--space-7);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: var(--weight-support);
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    border-color var(--dur-fast) ease-out,
+    box-shadow var(--dur-fast) ease-out;
+}
+
+.search-input,
+.lookup-query-input {
+  padding-left: calc(var(--space-7) + var(--icon-md) + var(--space-5));
+}
+
+.search-input::placeholder,
+.lookup-query-input::placeholder,
+.download-url-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.search-input:focus,
+.lookup-query-input:focus,
+.download-url-input:focus,
+.pdf-name-input:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 4px var(--primary-tint);
+}
+
+/* ── Library shell ────────────────────────────────────────── */
+.library-shell-header {
+  flex: none;
+  padding: var(--space-4) var(--page-pad) var(--space-6);
+}
+
+.library-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.brand-logo {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-logo);
+  box-shadow: 0 0 0 var(--border-w) var(--logo-ring);
+}
+
+.logo {
+  font-size: var(--text-title);
+  font-weight: var(--weight-display);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.logo .accent {
+  color: var(--primary-ink);
+}
+
+/* Holds the scrolling panels and the floating Add button; the tab bar sits
+   below it in the flow, so nothing scrolls underneath the bar. */
+.library-main {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.library-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-2) var(--page-pad) 0;
+}
+
+/* Room at the end of the list for the floating Add button (its height is
+   measured into --fab-h, so it follows Dynamic Type). */
+.library-panel--with-fab {
+  padding-bottom: calc(var(--fab-h, var(--button-h)) + var(--lip) + var(--fab-offset));
+}
+
+.library-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.library-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin: var(--space-7) 0 var(--space-6);
+}
+
+.sort-filter-btn {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-min);
+  margin-bottom: var(--lip-sm);
+  padding: var(--space-2) var(--space-7) var(--space-2) var(--space-6);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: 0 var(--lip-sm) 0 var(--border-lip);
+  color: var(--text);
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+  text-align: start;
+  transition: transform var(--dur-press) ease-out;
+}
+
+.sort-filter-btn > .icon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--primary-ink);
+}
+
+.sort-filter-btn:active {
+  transform: translateY(var(--lip-sm));
+  box-shadow: none;
+}
+
+/* An active filter is spelled out on the button, not just coloured. */
+.sort-filter-state {
+  padding: 0 var(--space-4);
+  border: var(--border-w) solid var(--selected-edge);
+  border-radius: var(--radius-pill);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+}
+
+.library-panel--empty .library-toolbar,
+.library-panel--empty .library-controls {
+  display: none;
+}
+
+.library-panel--empty .empty-state {
+  padding-top: var(--space-6);
+}
+
+.library-count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-label);
+}
+
+/* ── Add button (floats above the tab bar, thumb side) ─────── */
+.add-fab {
+  position: absolute;
+  right: var(--page-pad);
+  bottom: var(--fab-offset);
+  z-index: var(--z-float);
+  max-width: calc(100% - 2 * var(--page-pad));
+  margin-bottom: 0;
+  padding-inline: var(--space-9) var(--space-10);
+  border-radius: var(--radius-pill);
+}
+
+.add-fab .icon {
+  width: var(--icon-fab);
+  height: var(--icon-fab);
+}
+
+/* ── Bottom tab bar ───────────────────────────────────────── */
+.tab-bar {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--page-pad) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-top: var(--border-w) solid var(--border);
+  background: var(--surface);
+  container-type: inline-size;
+  /* Grows with Dynamic Type up to a cap, like the system tab bar. */
+  font-size: min(var(--text-caption), var(--tab-label-max));
+}
+
+.tab-bar-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: var(--tab-h);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: inherit;
+  font-weight: var(--weight-label);
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: break-word;
+  transition: color var(--dur-fast) ease-out;
+}
+
+.tab-bar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) var(--space-7);
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-pill);
+  transition:
+    background-color var(--dur-fast) ease-out,
+    transform var(--dur-press) ease-out;
+}
+
+.tab-bar-icon .icon {
+  width: min(1.5rem, var(--tab-icon-max));
+  height: min(1.5rem, var(--tab-icon-max));
+}
+
+.tab-bar-tab:active .tab-bar-icon {
+  transform: scale(var(--press-scale));
+}
+
+/* Selected: outlined pill (3:1 edge) plus heavier label, not colour alone. */
+.tab-bar-tab[aria-selected='true'] {
+  color: var(--primary-ink);
+  font-weight: var(--weight-heading);
+}
+
+.tab-bar-tab[aria-selected='true'] .tab-bar-icon {
+  border-color: var(--selected-edge);
+  background: var(--primary-tint);
+}
+
+/* Very large text on a narrow phone: icons only (the labels stay as the
+   tabs' accessible names). Container queries can't read custom properties,
+   so this 13em breakpoint stays literal. */
+@container (max-width: 13em) {
+  .tab-bar-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* ── Bottom sheets (Add, Sort & filter) ─────────────────────── */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: calc(env(safe-area-inset-top) + var(--space-10));
+  background: var(--scrim);
+  animation: fadeIn var(--dur-fast) ease-out;
+}
+
+.sheet-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: min(100%, var(--sheet-max-w));
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-9) var(--page-pad) calc(var(--space-6) + env(safe-area-inset-bottom));
+  border: var(--border-w) solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--surface);
+  animation: sheetRise var(--dur-bouncy) var(--ease-snappy);
+}
+
+.sheet-title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+}
+
+.sheet-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.sheet-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-7);
+  min-height: var(--button-h);
+  margin-bottom: var(--lip-sm);
+  padding: var(--space-6) var(--space-8);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 var(--lip-sm) 0 var(--border-lip);
+  color: var(--text);
+  text-align: start;
+  transition: transform var(--dur-press) ease-out;
+}
+
+.sheet-option:active {
+  transform: translateY(var(--lip-sm));
+  box-shadow: none;
+}
+
+.sheet-option-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-tile);
+  height: var(--icon-tile);
+  border-radius: var(--radius-sm);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+
+.sheet-option-icon .icon {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+}
+
+.sheet-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sheet-option-label {
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+}
+
+.sheet-option-hint {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-support);
+}
+
+.sheet-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-group-label {
+  padding-bottom: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  text-transform: uppercase;
+}
+
+.sheet-radio {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  min-height: var(--tap-min);
+  padding: var(--space-3) var(--space-6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-weight: var(--weight-support);
+  text-align: start;
+}
+
+.sheet-radio:active {
+  background: var(--surface-sunken);
+}
+
+.sheet-radio-check {
+  visibility: hidden;
+  color: var(--primary-ink);
+}
+
+.sheet-radio[aria-checked='true'] {
+  font-weight: var(--weight-heading);
+}
+
+.sheet-radio[aria-checked='true'] .sheet-radio-check {
+  visibility: visible;
+}
+
+.sheet-panel > .btn {
+  margin-top: var(--space-2);
+}
+
+/* ── PDF cards ────────────────────────────────────────────── */
+.pdf-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-bottom: var(--lip);
+}
+
+.pdf-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+  transition:
+    transform var(--dur-press) ease-out,
+    box-shadow var(--dur-press) ease-out;
+}
+
+.pdf-card:has(.pdf-card-info:active) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--border-lip);
+}
+
+.pdf-list--animate .pdf-card,
+.lookup-results .lookup-card {
+  animation: popIn var(--dur-bouncy) var(--ease-bouncy) both;
+  animation-delay: calc(var(--stagger, 0) * var(--stagger-step));
+}
+
+.pdf-card-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+  min-height: var(--tap-min);
+  margin: 0;
+  padding: var(--space-7) var(--space-2) var(--space-7) var(--space-7);
+  border: 0;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+/* While renaming, the button is swapped for this plain container. */
+.pdf-card-info--editing {
+  cursor: auto;
+}
+
+.pdf-card-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+
+.pdf-card-icon .svg-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.pdf-card-unread .pdf-card-icon {
+  background: var(--pink-tint);
+  color: var(--pink-ink);
+}
+
+.pdf-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.pdf-name {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.pdf-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-support);
+}
+
+.pdf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  text-transform: uppercase;
+}
+
+.pdf-badge .icon {
+  width: 1em;
+  height: 1em;
+}
+
+.pdf-badge-new {
+  background: var(--pink-tint);
+  color: var(--pink-ink);
+}
+
+.pdf-badge-done {
+  background: var(--success-tint);
+  color: var(--success-ink);
+}
+
+.pdf-progress-text {
+  color: var(--primary-ink);
+  font-weight: var(--weight-label);
+}
+
+.pdf-progress,
+.reader-progress {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--locked);
+}
+
+.pdf-progress {
+  height: var(--progress-h);
+  margin-top: var(--space-2);
+}
+
+.pdf-progress-fill,
+.reader-progress-fill {
+  position: relative;
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+}
+
+/* Glossy highlight strip, as on the house progress bars */
+.pdf-progress-fill::after,
+.reader-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 20%;
+  left: 6px;
+  right: 6px;
+  height: 26%;
+  border-radius: var(--radius-pill);
+  background: var(--highlight);
+}
+
+.pdf-card-actions {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* Lift the card whose menu is open above its neighbours (cards that popped
+   in keep their own stacking context). */
+.pdf-card--menu-open {
+  z-index: var(--z-float);
+}
+
+/* The Add button floats at the same layer: step it aside while a card menu
+   is open so it can't cover the menu's items. */
+.library-main--menu-open .add-fab {
+  visibility: hidden;
+}
+
+.pdf-more-btn[aria-expanded='true'] {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.pdf-card-menu {
+  position: absolute;
+  top: calc(100% - var(--space-3));
+  right: var(--space-3);
+  z-index: var(--z-menu);
+  display: flex;
+  flex-direction: column;
+  min-width: var(--menu-min-w);
+  max-width: calc(100vw - 2 * var(--page-pad));
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+  animation: fadeIn var(--dur-fast) var(--ease-gentle);
+}
+
+/* Not enough room below inside the list (above the tab bar): open upward. */
+.pdf-card-menu--up {
+  top: auto;
+  bottom: calc(100% - var(--space-3));
+}
+
+.pdf-card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  min-height: var(--input-h);
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: var(--weight-label);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pdf-card-menu-item .icon {
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--text-muted);
+}
+
+.pdf-card-menu-item:hover,
+.pdf-card-menu-item:active {
+  background: var(--surface-sunken);
+}
+
+.pdf-card-menu-item:focus-visible {
+  outline-offset: var(--focus-offset-inset);
+}
+
+.pdf-card-menu-item-danger,
+.pdf-card-menu-item-danger .icon {
+  color: var(--danger-ink);
+}
+
+.pdf-card-menu-item-danger:hover,
+.pdf-card-menu-item-danger:active {
+  background: var(--danger-tint);
+}
+
+.pdf-name-input {
+  min-height: var(--tap-min);
+  border-color: var(--primary);
+  font-weight: var(--weight-label);
+}
+
+/* ── Empty states ─────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+}
+
+.empty-illustration {
+  margin-bottom: var(--space-4);
+}
+
+.empty-message {
+  color: var(--text);
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+  line-height: 1.2;
+}
+
+.empty-hint {
+  max-width: 30ch;
+  color: var(--text-muted);
+  font-size: var(--text-body);
+  font-weight: var(--weight-support);
+}
+
+.empty-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 20rem;
+  margin-top: var(--space-6);
+}
+
+.empty-state > .btn {
+  margin-top: var(--space-6);
+}
+
+/* ── Illustration ─────────────────────────────────────────── */
+.illo {
+  display: block;
+  overflow: visible;
+}
+
+.illo-orb { fill: var(--illo-orb); }
+.illo-orb-inner { fill: var(--illo-orb-inner); }
+.illo-page { fill: var(--illo-page); }
+.illo-fold { fill: var(--illo-fold); }
+.illo-ink { fill: var(--illo-ink); }
+.illo-glint { fill: var(--illo-page); }
+.illo-cheek { fill: var(--illo-cheek); }
+.illo-star { fill: var(--illo-star); }
+.illo-star-2 { fill: var(--illo-star-2); }
+.illo-shadow { fill: var(--illo-shadow); }
+
+.illo-line {
+  fill: none;
+  stroke: var(--illo-ink);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.illo-float {
+  animation: float var(--dur-float) var(--ease-gentle) infinite alternate;
+  transform-origin: 60px 62px;
+}
+
+.illo-star,
+.illo-star-2 {
+  animation: twinkle var(--dur-twinkle) ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.illo-star-2 {
+  animation-delay: calc(var(--dur-twinkle) / -2);
+}
+
+/* ── Footer (in the scroll flow, never covering content) ───── */
+.app-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-12);
+  padding: var(--space-6) 0 var(--space-8);
+  border-top: var(--border-w) dashed var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-support);
+  text-align: center;
+}
+
+.privacy-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-weight: var(--weight-label);
+}
+
+.privacy-note .icon {
+  color: var(--gold-ink);
+}
+
+.credit-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  padding: 0 var(--space-2);
+  color: var(--primary-ink);
+  font-weight: var(--weight-label);
+  text-decoration: none;
+}
+
+/* ── Toast ────────────────────────────────────────────────────
+   At the bottom, clear of the thumb-side chrome: toast.ts measures the tab
+   bar / Add button / reader bottom bar into --toast-floor; with none showing
+   it rests on the bottom safe area. */
+.toast {
+  position: fixed;
+  bottom: calc(var(--toast-floor, env(safe-area-inset-bottom)) + var(--space-6));
+  left: 50%;
+  z-index: var(--z-toast);
+  width: max-content;
+  max-width: min(calc(100vw - 2 * var(--page-pad)), var(--toast-max-w));
+  padding: var(--space-6) var(--space-8);
+  border: var(--border-w) solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--primary-lip);
+  color: var(--text);
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+  text-align: center;
+  transform: translateX(-50%);
+  animation: toastIn var(--dur-bouncy) var(--ease-bouncy);
+}
+
+/* Idle: transparent rather than display:none, so the live regions inside stay
+   in the accessibility tree and new messages are announced. */
+.toast.toast-idle {
+  opacity: 0;
+  pointer-events: none;
+  animation: none;
+}
+
+.toast-has-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding-block: var(--space-3);
+  padding-inline-end: var(--space-3);
+  text-align: left;
+}
+
+.toast-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The unused live region (status or alert) stays in the tree, out of sight. */
+.toast-message:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.toast-action {
+  flex: none;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  margin-inline-start: auto;
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  text-transform: uppercase;
+  transition: transform var(--dur-press) ease-out;
+}
+
+.toast-action:active {
+  transform: scale(var(--press-scale));
+}
+
+.toast-error {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+  box-shadow: 0 var(--lip) 0 var(--danger-lip);
+  color: var(--danger-ink);
+}
+
+/* ── Add-from-link dialog ─────────────────────────────────────
+   Anchored to the top on phones: the iOS keyboard does not resize the
+   web view, so a bottom sheet would hide its own buttons. */
+.download-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--page-pad);
+  padding-top: calc(env(safe-area-inset-top) + var(--space-10));
+  background: var(--scrim);
+  animation: fadeIn var(--dur-fast) ease-out;
+}
+
+.download-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: min(100%, 28rem);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-9);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+  animation: sheetUp var(--dur-bouncy) var(--ease-snappy);
+}
+
+.download-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.download-dialog-title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+}
+
+.download-dialog-hint,
+.download-save-hint {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-support);
+}
+
+.download-url-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.control-text {
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+}
+
+.download-dialog-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-5);
+  margin-top: var(--space-2);
+}
+
+/* ── Find Online ──────────────────────────────────────────── */
+.lookup-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.lookup-search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-5);
+}
+
+.lookup-search-bar .search-box {
+  flex: 1 1 12rem;
+}
+
+.lookup-search-btn {
+  min-height: var(--input-h);
+}
+
+.lookup-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-6) 0 var(--space-3);
+}
+
+.lookup-filter-chip {
+  flex: none;
+  min-height: var(--tap-min);
+  margin-bottom: var(--lip-sm);
+  padding: var(--space-2) var(--space-8);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: 0 var(--lip-sm) 0 var(--border-lip);
+  color: var(--text);
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+  white-space: nowrap;
+  transition:
+    transform var(--dur-press) ease-out,
+    box-shadow var(--dur-press) ease-out;
+}
+
+.lookup-filter-chip:active {
+  transform: translateY(var(--lip-sm));
+  box-shadow: 0 0 0 var(--border-lip);
+}
+
+.lookup-filter-chip.active {
+  border-color: var(--selected-edge);
+  background: var(--primary-tint);
+  box-shadow: 0 var(--lip-sm) 0 var(--primary-lip);
+  color: var(--primary-ink);
+}
+
+.lookup-disclaimer {
+  margin: var(--space-3) 0 var(--space-6);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-support);
+}
+
+.lookup-notice {
+  margin-bottom: var(--space-6);
+  padding: var(--space-5) var(--space-7);
+  border-radius: var(--radius);
+  background: var(--gold-tint);
+  color: var(--gold-ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-label);
+}
+
+.lookup-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--card-pad);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+}
+
+.lookup-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.lookup-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.lookup-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-caption);
+}
+
+.lookup-source-badge {
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-button);
+  text-transform: uppercase;
+}
+
+.lookup-source-archive {
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+
+.lookup-source-gutenberg {
+  background: var(--success-tint);
+  color: var(--success-ink);
+}
+
+.lookup-source-web {
+  background: var(--pink-tint);
+  color: var(--pink-ink);
+}
+
+.lookup-card-authors {
+  color: var(--text-muted);
+  font-weight: var(--weight-support);
+}
+
+.lookup-snippet {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.lookup-card-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+
+/* ── Reader ───────────────────────────────────────────────── */
+.reader-view {
+  background: var(--reader-stage);
+}
+
+.reader-header {
+  container-type: inline-size;
+  position: relative;
+  z-index: var(--z-raised);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--hairline) solid var(--reader-chrome-edge);
+  background: var(--reader-chrome-bg);
+}
+
+/* Quiet chrome: no lips or sky fills in the reader except Prev / Next. */
+.reader-add-btn {
+  --btn-bg: transparent;
+  --btn-ink: var(--primary-ink);
+  --btn-edge: var(--reader-chrome-edge);
+  --btn-lip: transparent;
+  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.reader-add-btn:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+  box-shadow: none;
+}
+
+.btn-back {
+  gap: 0;
+  padding: 0 var(--space-4) 0 var(--space-1);
+  color: var(--primary-ink);
+  font-weight: var(--weight-heading);
+}
+
+.btn-back-label {
+  font-size: var(--text-body);
+}
+
+/* Narrow header or large Dynamic Type (em follows the root text size):
+   keep the title readable by dropping the button words, keeping icons. */
+@container (max-width: 21em) {
+  .btn-back-label,
+  .reader-add-btn .btn-label {
+    display: none;
+  }
+
+  .btn-back {
+    padding-right: 0;
+  }
+}
+
+.reader-heading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.pdf-title {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-preview-tag {
+  color: var(--pink-ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-label);
+}
+
+.reader-has-error .reader-toolbar,
+.reader-has-error .reader-progress {
+  display: none;
+}
+
+.reader-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.reader-toolbar-secondary,
+.font-size-controls {
+  display: none;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.reader-toolbar-overflow {
+  position: relative;
+}
+
+.reader-overflow-menu {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  right: 0;
+  z-index: var(--z-menu);
+  display: flex;
+  flex-direction: column;
+  min-width: 14rem;
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--reader-chrome-edge);
+  border-radius: var(--radius);
+  background: var(--reader-chrome-bg);
+  animation: fadeIn var(--dur-fast) var(--ease-gentle);
+  transform-origin: top right;
+}
+
+.reader-overflow-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  min-height: var(--input-h);
+  padding: 0 var(--space-6);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-weight: var(--weight-label);
+  text-align: left;
+}
+
+.reader-overflow-item:active {
+  background: var(--surface-sunken);
+}
+
+.reader-overflow-item > .icon:first-child {
+  color: var(--text-muted);
+}
+
+.reader-overflow-check {
+  margin-left: auto;
+  color: var(--primary-ink);
+  visibility: hidden;
+}
+
+.reader-overflow-item[aria-checked='true'] .reader-overflow-check {
+  visibility: visible;
+}
+
+.reader-progress {
+  flex: none;
+  height: var(--progress-h-reader);
+  border-radius: 0;
+  background: var(--reader-progress-track);
+}
+
+.reader-progress-fill {
+  width: 0%;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  background: var(--reader-progress-fill);
+  transition: width var(--dur-snappy) var(--ease-gentle);
+}
+
+.reader-progress-fill::after {
+  display: none;
+}
+
+.reader-tips {
+  flex: none;
+  background: var(--reader-stage);
+  padding: var(--space-3) var(--space-6);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-support);
+  text-align: center;
+}
+
+.reader-canvas-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* No padding: the renderer fits the page to the stage's client box
+     (padding would be counted), and keeps its own small margin. */
+  padding: 0;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.reader-canvas-container.zoomed {
+  display: block;
+  overflow: auto;
+}
+
+.reader-canvas-wrapper {
+  line-height: 0;
+}
+
+.reader-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-xs);
+  box-shadow: 0 0 0 var(--hairline) var(--reader-chrome-edge);
+  opacity: 0;
+  transition: opacity var(--dur-snappy) ease-out;
+}
+
+.reader-canvas-container.zoomed .reader-canvas {
+  max-width: none;
+  max-height: none;
+}
+
+.reader-canvas.rendered,
+.reader-text-panel.rendered {
+  opacity: 1;
+}
+
+.reader-text-panel {
+  display: none;
+  max-width: 100%;
+  padding: var(--reading-pad-block) var(--reading-pad-inline) var(--reading-pad-end);
+  font-family: var(--font-reading);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  opacity: 0;
+  transition: opacity var(--dur-snappy) ease-out;
+}
+
+/* Reading surfaces: warm paper / soft night (contrast 15:1 both) */
+.reader-text-panel.text-theme-light,
+.reader-view.text-mode.text-theme-light .reader-canvas-container {
+  background: var(--reading-paper);
+  color: var(--reading-paper-ink);
+}
+
+.reader-text-panel.text-theme-dark,
+.reader-view.text-mode.text-theme-dark .reader-canvas-container {
+  background: var(--reading-night);
+  color: var(--reading-night-ink);
+}
+
+/* Text mode: the paper fills the stage edge to edge, and the stage is the
+   one and only scroll container. */
+.reader-view.text-mode .reader-canvas-container {
+  display: block;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.reader-view.text-mode .reader-canvas-wrapper {
+  display: block;
+  width: 100%;
+  line-height: normal;
+}
+
+.reader-view.text-mode .reader-text-panel {
+  display: block;
+  width: 100%;
+  max-width: var(--reading-measure);
+  margin: 0 auto;
+}
+
+.reader-view.text-mode .reader-canvas {
+  display: none;
+}
+
+.reader-bottom-bar {
+  position: relative;
+  z-index: var(--z-raised);
+  flex: none;
+  padding: var(--space-5) var(--page-pad) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-top: var(--hairline) solid var(--reader-chrome-edge);
+  background: var(--reader-chrome-bg);
+}
+
+/* ── Hidden chrome: tap the page to hide / show the controls ──
+   The parts leave the flow at once (so the stage grows and the page is
+   re-fitted) and slide away over it; visibility flips after the slide, so
+   hidden controls can't be focused or read. JS also sets them inert. */
+.reader-chrome {
+  transition:
+    transform var(--dur-chrome) var(--ease-chrome),
+    opacity var(--dur-chrome) var(--ease-chrome),
+    visibility 0s linear 0s;
+}
+
+.reader-view.chrome-hidden .reader-chrome {
+  position: absolute;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform var(--dur-chrome) var(--ease-chrome),
+    opacity var(--dur-chrome) var(--ease-chrome),
+    visibility 0s linear var(--dur-chrome);
+}
+
+.reader-view.chrome-hidden .reader-header,
+.reader-view.chrome-hidden .reader-progress,
+.reader-view.chrome-hidden .reader-tips {
+  top: 0;
+  transform: translateY(-100%);
+}
+
+.reader-view.chrome-hidden .reader-bottom-bar {
+  bottom: 0;
+  transform: translateY(100%);
+}
+
+/* Keep the page clear of the home indicator once the bottom bar is gone.
+   (Margin, not padding: the renderer measures the stage's client box.) */
+.reader-view.chrome-hidden:not(.text-mode) .reader-canvas-container {
+  margin-bottom: env(safe-area-inset-bottom);
+}
+
+.reader-view.chrome-hidden.text-mode .reader-text-panel {
+  padding-bottom: calc(var(--reading-pad-end) + env(safe-area-inset-bottom));
+}
+
+/* Always reachable for VoiceOver and keyboards while the chrome is hidden;
+   visually hidden until it has focus. */
+.reader-show-chrome {
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  z-index: var(--z-float);
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.reader-show-chrome:focus {
+  width: auto;
+  height: auto;
+  min-height: var(--tap-min);
+  margin: 0;
+  padding: var(--space-4) var(--space-8);
+  overflow: visible;
+  clip: auto;
+  border: var(--hairline) solid var(--reader-chrome-edge);
+  border-radius: var(--radius-pill);
+  background: var(--reader-chrome-bg);
+  color: var(--text);
+  font-weight: var(--weight-label);
+  transform: translateX(-50%);
+}
+
+.reader-toolbar-nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-6);
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.btn-page {
+  width: 100%;
+  padding: 0;
+}
+
+.btn-page .icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.page-indicator {
+  min-width: 5ch;
+  padding-bottom: var(--lip);
+  color: var(--text);
+  font-size: var(--text-headline);
+  font-weight: var(--weight-heading);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.error-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-10) var(--page-pad);
+  overflow-y: auto;
+  text-align: center;
+}
+
+.error-title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+}
+
+.error-detail {
+  max-width: 32ch;
+  color: var(--text);
+  font-weight: var(--weight-support);
+}
+
+.error-hint {
+  max-width: 32ch;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  font-weight: var(--weight-support);
+}
+
+.btn-remove {
+  --btn-ink: var(--danger-ink);
+}
+
+.error-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 20rem;
+  margin-top: var(--space-6);
+}
+
+/* ── Loading ──────────────────────────────────────────────── */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--page-pad);
+  background: var(--scrim);
+  animation: fadeIn var(--dur-fast) ease-out;
+}
+
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-7);
+  max-width: 20rem;
+  padding: var(--space-10) var(--space-12);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+  animation: popIn var(--dur-bouncy) var(--ease-bouncy);
+}
+
+.loading-dots {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.loading-dots span {
+  width: var(--dot-size);
+  height: var(--dot-size);
+  border-radius: 50%;
+  background: var(--primary);
+  animation: hop var(--dur-hop) var(--ease-gentle) infinite;
+}
+
+.loading-dots span:nth-child(2) {
+  background: var(--pink);
+  animation-delay: var(--dur-press);
+}
+
+.loading-dots span:nth-child(3) {
+  background: var(--gold);
+  animation-delay: calc(var(--dur-press) * 2);
+}
+
+.loading-text {
+  color: var(--text);
+  font-weight: var(--weight-label);
+  text-align: center;
+}
+
+/* ── Debug panel (hidden tool) ────────────────────────────── */
+.debug-panel {
+  position: fixed;
+  right: var(--space-8);
+  bottom: calc(var(--space-8) + env(safe-area-inset-bottom));
+  z-index: var(--z-debug);
+  display: flex;
+  flex-direction: column;
+  width: min(25rem, calc(100vw - 2rem));
+  max-height: 50vh;
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 var(--lip) 0 var(--border-lip);
+}
+
+.debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-6);
+  border-bottom: var(--border-w) solid var(--border);
+  font-size: var(--text-small);
+  font-weight: var(--weight-heading);
+}
+
+.debug-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+}
+
+.debug-stats,
+.debug-entries {
+  padding: var(--space-4) var(--space-6);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+}
+
+.debug-stats {
+  border-bottom: var(--border-w) solid var(--border);
+  color: var(--text-muted);
+}
+
+.debug-entries {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.debug-entry {
+  padding: var(--space-1) 0;
+  word-break: break-all;
+}
+
+.debug-time { color: var(--text-muted); }
+.debug-warn { color: var(--gold-ink); }
+.debug-error { color: var(--danger-ink); }
+.debug-debug { color: var(--text-muted); }
+
+/* ── Wider screens (iPad, desktop) ────────────────────────── */
+@media (min-width: 600px) {
+  .pdf-list,
+  .lookup-results {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reader-toolbar-secondary,
+  .reader-toolbar-secondary .font-size-controls {
+    display: flex;
+  }
+
+  .reader-toolbar-overflow {
+    display: none;
+  }
+
+  .download-dialog {
+    align-items: center;
+  }
+}
+
+/* ── Motion ───────────────────────────────────────────────── */
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sheetUp {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes sheetRise {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 12px) scale(0.96); }
+  to { opacity: 1; transform: translateX(-50%); }
+}
+
+@keyframes float {
+  from { transform: translateY(0); }
+  to { transform: translateY(-4px); }
+}
+
+@keyframes twinkle {
+  from { opacity: 0.55; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes hop {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-8px); }
+}
+
+/* Reduce Motion: keep state changes, drop movement and loops. A 1ms
+   animation still fires animationend, which main.ts waits for. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .reader-chrome,
+  .reader-view.chrome-hidden .reader-chrome {
+    transition-delay: 0ms !important;
+  }
+
+  .reader-view.chrome-hidden .reader-chrome {
+    transform: none;
+  }
+
+  .btn:active:not(:disabled),
+  .btn-small:active:not(:disabled),
+  .reader-add-btn:active:not(:disabled),
+  .lookup-filter-chip:active,
+  .toast-action:active,
+  .sort-filter-btn:active,
+  .sheet-option:active,
+  .tab-bar-tab:active .tab-bar-icon,
+  .pdf-card:has(.pdf-card-info:active) {
+    transform: none;
+  }
+}

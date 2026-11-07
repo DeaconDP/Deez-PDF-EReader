@@ -4,7 +4,7 @@
   <img src="https://cdn.jsdelivr.net/gh/DeaconDP/Deez-PDF-EReader@81cb63c4c5129fc09095ba3fd439d7b837eded1d/docs/screenshots/hero.png" alt="DeezPDF" width="360" />
 </p>
 
-Cyberpunk-styled PDF reader with a local library. Page-by-page like a Kindle, swipe navigation, automatic progress — PDFs stay on your device. Nothing is uploaded.
+A friendly, offline PDF reader with a local library. Page-by-page like a Kindle, swipe navigation, automatic progress — PDFs stay on your device. Nothing is uploaded.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 ![Platform: PWA · Windows · macOS · iOS](https://img.shields.io/badge/platform-PWA%20%7C%20Windows%20%7C%20macOS%20%7C%20iOS-informational)
@@ -62,10 +62,11 @@ Install as a PWA from Chrome/Edge for an app-like window.
 npm install
 npm run dev          # http://127.0.0.1:5179
 npm run build
+npm test             # node:test, no extra dependencies
 npm start            # launcher
 ```
 
-PDF Lookup / Brave Search env notes stay under Development workflows in-repo (`BRAVE_SEARCH_API_KEY`, `VITE_PDF_SEARCH_URL`). iOS / App Store steps: [docs/ios.md](docs/ios.md). Platform matrix: [docs/platforms.md](docs/platforms.md).
+PDF Lookup / Brave Search env notes stay under Development workflows in-repo (`BRAVE_SEARCH_API_KEY`, `VITE_PDF_SEARCH_URL`). iOS / App Store steps: [docs/ios.md](docs/ios.md). Design tokens and the Nov 2026 refresh: [docs/redesign/README.md](docs/redesign/README.md). Platform matrix: [docs/platforms.md](docs/platforms.md).
 
 ## Credit
 

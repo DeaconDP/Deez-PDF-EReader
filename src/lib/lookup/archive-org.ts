@@ -47,7 +47,9 @@ export async function searchArchiveOrg(query: string, limit = 15): Promise<Looku
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const searchQuery = `(title:(${trimmed}) OR creator:(${trimmed})) AND mediatype:texts`;
+  // Lending-library copies (access-restricted) answer anonymous downloads with
+  // HTTP 401, so Preview/Add always failed on them. Only ask for open items.
+  const searchQuery = `(title:(${trimmed}) OR creator:(${trimmed})) AND mediatype:texts AND NOT access-restricted-item:true`;
   const params = new URLSearchParams({
     q: searchQuery,
     fl: 'identifier,title,creator,description',

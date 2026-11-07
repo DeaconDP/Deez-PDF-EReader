@@ -35,9 +35,9 @@ export default defineConfig({
             manifest: {
               name: 'DeezPDF Reader',
               short_name: 'DeezPDF',
-              description: 'A cyberpunk PDF reader with local library support',
-              theme_color: '#060810',
-              background_color: '#060810',
+              description: 'A friendly, offline PDF reader with a local library',
+              theme_color: '#1cb0f6',
+              background_color: '#ffffff',
               display: 'standalone',
               start_url: '/',
               icons: [
