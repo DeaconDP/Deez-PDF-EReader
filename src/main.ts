@@ -6,11 +6,22 @@ import { initDebugPanel } from './components/debug-panel';
 import { addLookupResultToLibrary } from './lib/library';
 import { logger } from './lib/logger';
 import { initNativeShell } from './lib/native-shell';
-import { isNativeApp } from './lib/platform';
+import { isAndroid, isNativeApp } from './lib/platform';
+import { ReaderBackStack } from './lib/android-back';
 import type { LookupResult } from './lib/lookup/types';
 
 const app = document.getElementById('app')!;
 let currentView: HTMLElement | null = null;
+
+// Android only: system Back in the reader returns to where it was opened from.
+// Escape runs the reader's own back path (it closes an open menu first).
+const readerBack = isAndroid()
+  ? new ReaderBackStack(history, () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      if (currentView?.classList.contains('reader-view')) readerBack?.enterReader();
+    })
+  : null;
+if (readerBack) window.addEventListener('popstate', () => readerBack.handlePopState());
 
 function mount(view: HTMLElement) {
   if (currentView) {
@@ -27,6 +38,8 @@ function mount(view: HTMLElement) {
     { once: true },
   );
   app.insertBefore(view, app.querySelector('.app-footer') ?? null);
+  if (view.classList.contains('reader-view')) readerBack?.enterReader();
+  else readerBack?.leaveReader();
 }
 
 function showLibrary(options?: { tab?: LibraryTab; toast?: string; removePdfId?: string }) {

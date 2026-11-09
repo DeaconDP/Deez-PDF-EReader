@@ -31,3 +31,5 @@ ios/App/Pods/
 # storekit-ship: App Review contact details (repo is public)
 store/app.toml
 build/storekit-ship/
+# Android signing (upload key and its password live outside the repo)
+keystore.properties

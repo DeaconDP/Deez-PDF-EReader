@@ -15,6 +15,10 @@
     "ios": "npm run cap:sync && npm run cap:open",
     "ios:archive": "bash scripts/ios-archive.sh",
     "ios:export": "bash scripts/ios-export.sh",
+    "cap:sync:android": "npm run build:ios && npx cap sync android",
+    "android:icons": "node scripts/generate-android-icons.mjs",
+    "android:bundle": "npm run cap:sync:android && cd android && ./gradlew bundleRelease",
+    "android:open": "npx cap open android",
     "start": "node launcher/index.js",
     "build:exe": "pkg launcher/index.js --targets node18-win-x64 --output DeezPDFReader.exe",
     "test": "node --test --experimental-strip-types tests/*.test.ts"
@@ -22,6 +26,7 @@
   "author": "deac.online",
   "license": "MIT",
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",
